@@ -33,7 +33,7 @@ export default function ExtensionSetupPage() {
           <h1>Pasang detector<br />di browsermu.</h1>
           <p>Versi beta Reelmark dapat mendeteksi tontonan di Chrome dan Edge. Instalasi masih menggunakan Developer mode dan belum tersedia di browser store.</p>
           <div className={styles.heroActions}>
-            <a className={styles.download} href="/downloads/reelmark-extension.zip" download>Unduh extension (.zip)</a>
+            <a className={styles.download} href="/downloads/reelmark-extension-0.3.0.zip" download>Unduh extension v0.3.0 (.zip)</a>
             <a className={styles.guide} href="#steps-title">Lihat cara memasang</a>
           </div>
         </section>
