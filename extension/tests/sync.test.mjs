@@ -12,27 +12,57 @@ assert.equal(sync.prepareWatchedItem(prepared, "other-id").eventId, "event-id");
 assert.equal(sync.isUsefulTitle("Netflix", "netflix"), false);
 assert.equal(sync.isUsefulTitle("(31) Netflix", "netflix"), false);
 assert.equal(sync.isUsefulTitle("Le roi : monarque éternel", "netflix"), true);
+assert.equal(
+  sync.formatTitle("The King: Eternal Monarch", "더 킹 : 영원의 군주"),
+  "The King: Eternal Monarch (더 킹 : 영원의 군주)",
+);
+assert.equal(sync.formatTitle("Interstellar", "Interstellar"), "Interstellar");
+assert.equal(sync.shouldRestartDismissed({ dismissed: true }, true), true);
+assert.equal(sync.shouldRestartDismissed({ dismissed: true }, false), false);
+assert.equal(sync.shouldRestartDismissed({ dismissed: false }, true), false);
+assert.equal(
+  sync.sessionIdentity("netflix", "Le roi : monarque éternel", "https://www.netflix.com/watch/81260288?trackId=1"),
+  "netflix:https://www.netflix.com/watch/81260288",
+);
+assert.equal(sync.sessionIdentity("netflix", "더 킹", null), "netflix:더 킹");
+assert.equal(sync.sessionIdentity("netflix", "더 킹", "https://example.com/watch/81260288"), "netflix:더 킹");
+const legacySessions = {
+  "netflix:le roi": {
+    provider: "netflix",
+    title: "Le roi",
+    url: "https://www.netflix.com/watch/81260288?trackId=1",
+    updatedAt: "2026-09-17T12:00:00.000Z",
+  },
+};
+assert.deepEqual(sync.normalizeSessionKeys(legacySessions), {
+  "netflix:https://www.netflix.com/watch/81260288": legacySessions["netflix:le roi"],
+});
 
 assert.deepEqual(sync.listInProgress({
   invalid: { title: "Netflix", provider: "netflix", progress: 0, updatedAt: "2026-09-17T13:00:00.000Z" },
+  dismissed: { title: "Tenet", provider: "netflix", progress: 44, dismissed: true, updatedAt: "2026-09-17T14:00:00.000Z" },
   notification: { title: "(31) Netflix", provider: "netflix", progress: 11, updatedAt: "2026-09-17T13:00:00.000Z" },
-  older: { title: " Arrival ", provider: "netflix", progress: 51.2, updatedAt: "2026-09-17T10:00:00.000Z" },
+  older: { title: " Le roi ", displayTitle: "The King: Eternal Monarch", originalTitle: "더 킹 : 영원의 군주", provider: "netflix", progress: 51.2, updatedAt: "2026-09-17T10:00:00.000Z" },
   newer: { title: "Dune", provider: "max", progress: 72.6, updatedAt: "2026-09-17T12:00:00.000Z" },
 }), [
   { title: "Dune", provider: "max", progress: 73, updatedAt: "2026-09-17T12:00:00.000Z" },
-  { title: "Arrival", provider: "netflix", progress: 51, updatedAt: "2026-09-17T10:00:00.000Z" },
+  { title: "The King: Eternal Monarch (더 킹 : 영원의 군주)", provider: "netflix", progress: 51, updatedAt: "2026-09-17T10:00:00.000Z" },
 ]);
 
 assert.deepEqual(sync.toSyncPayload({
   eventId: "event-id",
   provider: "netflix",
   title: "Interstellar",
+  canonicalTitle: null,
+  originalTitle: null,
   progress: 80,
   watchedAt: "2026-09-17T12:00:00.000Z",
 }), {
   eventId: "event-id",
   provider: "netflix",
   title: "Interstellar",
+  canonicalTitle: null,
+  originalTitle: null,
   url: null,
   duration: null,
   progress: 80,
@@ -44,6 +74,8 @@ assert.deepEqual(sync.toProgressPayload({
   eventId: "event-id",
   provider: "netflix",
   title: "Interstellar",
+  displayTitle: "Interstellar (2014)",
+  originalTitle: "Interstellar",
   url: "https://www.netflix.com/watch/1",
   duration: 2400,
   currentTime: 1200,
@@ -53,6 +85,8 @@ assert.deepEqual(sync.toProgressPayload({
   eventId: "event-id",
   provider: "netflix",
   title: "Interstellar",
+  canonicalTitle: "Interstellar (2014)",
+  originalTitle: "Interstellar",
   url: "https://www.netflix.com/watch/1",
   duration: 2400,
   currentTime: 1200,

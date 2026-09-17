@@ -17,11 +17,24 @@ export type CatalogSearchItem = CatalogResult & {
   };
 };
 
-export type WatchedTitle = Pick<
-  CatalogResult,
-  "title" | "year" | "mediaType" | "posterPath"
-> & {
+export type WatchedTitle = {
   id: string;
+  title: string;
+  originalTitle: string | null;
+  year: number | null;
+  mediaType: CatalogResult["mediaType"] | null;
+  posterPath: string | null;
+  matched: boolean;
+  provider: string | null;
   watchedAt: string;
   watchCount: number;
 };
+
+export function formatDisplayTitle(title: string, originalTitle?: string | null) {
+  const localized = title.trim();
+  const original = originalTitle?.trim();
+  if (!original || localized.normalize("NFKC").toLocaleLowerCase() === original.normalize("NFKC").toLocaleLowerCase()) {
+    return localized;
+  }
+  return `${localized} (${original})`;
+}

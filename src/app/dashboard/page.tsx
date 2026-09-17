@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DeleteProgressButton } from "@/components/delete-progress-button";
 import { ExtensionIcon, FilmIcon } from "@/components/icons";
 import { MediaRow } from "@/components/media-row";
 import { ProgressRefresh } from "@/components/progress-refresh";
@@ -56,7 +57,13 @@ export default async function DashboardPage() {
                 <h3>{item.title}</h3>
                 <progress max="100" value={item.progress} aria-label={`Posisi tontonan ${item.title}: ${Math.round(item.progress)}%`} />
                 <div className={styles.continueTime}><span>{duration(item.currentTime)} / {duration(item.duration)}</span><span>Posisi pemutaran</span></div>
-                <footer><small>Terakhir {lastSeenFormatter.format(new Date(item.lastSeenAt))}</small>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">Buka di {providerLabels[item.provider]} →</a> : null}</footer>
+                <footer>
+                  <small>Terakhir {lastSeenFormatter.format(new Date(item.lastSeenAt))}</small>
+                  <div className={styles.continueActions}>
+                    {item.url ? <a href={item.url} target="_blank" rel="noreferrer">Buka di {providerLabels[item.provider]} →</a> : null}
+                    <DeleteProgressButton progressId={item.id} title={item.title} />
+                  </div>
+                </footer>
               </article>
             ))}
           </div>

@@ -1,14 +1,15 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import type { CatalogResult } from "@/lib/catalog";
 import { isUsefulDetectedTitle } from "@/lib/extension-title";
 import { createClient } from "@/lib/supabase/server";
-import { searchCatalog } from "@/lib/tmdb";
+import { resolveCatalogMatch } from "@/lib/tmdb";
 
 const syncSchema = z.object({
   eventId: z.string().uuid(),
   provider: z.enum(["netflix", "disney", "prime_video", "max"]),
   title: z.string().trim().min(1).max(300),
+  canonicalTitle: z.string().trim().min(1).max(300).nullable().optional(),
+  originalTitle: z.string().trim().min(1).max(300).nullable().optional(),
   url: z.string().url().max(2048).nullable().optional(),
   duration: z.number().int().positive().max(24 * 60 * 60).nullable().optional(),
   progress: z.number().min(80).max(100).optional(),
@@ -25,22 +26,6 @@ const providerHosts = {
 
 function hash(value: string) {
   return createHash("sha256").update(value).digest("hex");
-}
-
-function normalizeTitle(value: string) {
-  return value
-    .normalize("NFKD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLocaleLowerCase("en-US")
-    .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
-    .trim();
-}
-
-function exactMatch(query: string, results: CatalogResult[]) {
-  const normalized = normalizeTitle(query);
-  return results.find((item) =>
-    normalizeTitle(item.title) === normalized || normalizeTitle(item.originalTitle) === normalized,
-  ) ?? null;
 }
 
 function safeProviderUrl(provider: keyof typeof providerHosts, value?: string | null) {
@@ -73,10 +58,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "Backend Reelmark belum dikonfigurasi." }, { status: 503 });
   }
 
-  let match: CatalogResult | null = null;
+  let match = null;
   try {
-    const catalog = await searchCatalog(body.data.title);
-    match = exactMatch(body.data.title, catalog.results);
+    match = await resolveCatalogMatch({
+      canonicalTitle: body.data.canonicalTitle,
+      detectedTitle: body.data.title,
+      provider: body.data.provider,
+      providerUrl: body.data.url,
+    });
   } catch (error) {
     console.error("Extension catalog match failed", error);
   }
@@ -114,7 +103,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Tontonan ditolak karena datanya tidak valid." }, { status: 400 });
   }
 
-  return Response.json({ synced: true, matched: Boolean(result.matched) }, {
+  return Response.json({
+    synced: true,
+    matched: Boolean(result.matched),
+    title: match?.title ?? body.data.canonicalTitle ?? body.data.title,
+    originalTitle: match?.originalTitle ?? body.data.originalTitle ?? null,
+  }, {
     headers: { "Cache-Control": "no-store" },
   });
 }

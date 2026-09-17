@@ -6,10 +6,6 @@ const CONNECTION_KEY = "reelmark.connection";
 const INSTALL_ID_KEY = "reelmark.installId";
 const AUTH_STATE_KEY = "reelmark.authState";
 
-function identity(provider, title) {
-  return `${provider}:${title.toLocaleLowerCase().replace(/\s+/g, " ").trim()}`;
-}
-
 async function request(path, body, token) {
   const response = await fetch(`${ReelSync.apiBase}${path}`, {
     method: "POST",
@@ -30,10 +26,14 @@ async function request(path, body, token) {
 }
 
 async function syncPending(watched, connection) {
-  if (!connection?.token) return watched;
+  const normalized = ReelSync.normalizeSessionKeys(watched);
+  if (!connection?.token) {
+    if (normalized !== watched) await chrome.storage.local.set({ [WATCHED_KEY]: normalized });
+    return normalized;
+  }
 
-  let changed = false;
-  const next = { ...watched };
+  let changed = normalized !== watched;
+  const next = { ...normalized };
   for (const [key, original] of Object.entries(next)) {
     if (original.syncedAt) continue;
     const item = ReelSync.prepareWatchedItem(original, crypto.randomUUID());
@@ -43,6 +43,8 @@ async function syncPending(watched, connection) {
       const result = await request("/api/extension/sync", ReelSync.toSyncPayload(item), connection.token);
       next[key] = {
         ...item,
+        displayTitle: result.title ?? item.displayTitle,
+        originalTitle: result.originalTitle ?? item.originalTitle,
         syncedAt: new Date().toISOString(),
         catalogMatched: result.matched,
       };
@@ -62,11 +64,16 @@ async function syncPending(watched, connection) {
 }
 
 async function syncProgressSessions(sessions, connection) {
-  if (!connection?.token) return sessions;
+  const normalized = ReelSync.normalizeSessionKeys(sessions);
+  if (!connection?.token) {
+    if (normalized !== sessions) await chrome.storage.local.set({ [SESSIONS_KEY]: normalized });
+    return normalized;
+  }
 
-  let changed = false;
-  const next = { ...sessions };
+  let changed = normalized !== sessions;
+  const next = { ...normalized };
   for (const [key, original] of Object.entries(next)) {
+    if (original.dismissed) continue;
     if (!ReelSync.isUsefulTitle(original.title, original.provider)) {
       delete next[key];
       changed = true;
@@ -79,7 +86,16 @@ async function syncProgressSessions(sessions, connection) {
     }
 
     try {
-      await request("/api/extension/progress", ReelSync.toProgressPayload(item), connection.token);
+      const result = await request("/api/extension/progress", ReelSync.toProgressPayload(item), connection.token);
+      if (result.dismissed || (result.title && result.title !== item.displayTitle) || (result.originalTitle && result.originalTitle !== item.originalTitle)) {
+        next[key] = {
+          ...item,
+          displayTitle: result.title ?? item.displayTitle,
+          originalTitle: result.originalTitle ?? item.originalTitle,
+          dismissed: Boolean(result.dismissed),
+        };
+        changed = true;
+      }
     } catch (error) {
       if (error.status === 401) {
         await chrome.storage.local.remove(CONNECTION_KEY);
@@ -184,10 +200,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const sessions = await syncProgressSessions(data[SESSIONS_KEY] ?? {}, connection);
       const watched = Object.values(synced)
         .filter((item) => ReelSync.isUsefulTitle(item.title, item.provider))
+        .map((item) => ({ ...item, title: ReelSync.formatTitle(item.displayTitle ?? item.title, item.originalTitle) }))
         .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
       const inProgress = ReelSync.listInProgress(sessions);
+      const activeKeys = new Set(Object.entries(sessions)
+        .filter(([, item]) => item && !item.dismissed && ReelSync.isUsefulTitle(item.title, item.provider))
+        .map(([key]) => key));
+      const recent = Object.entries(synced)
+        .filter(([key, item]) => !activeKeys.has(key) && ReelSync.isUsefulTitle(item.title, item.provider))
+        .map(([, item]) => ({ ...item, title: ReelSync.formatTitle(item.displayTitle ?? item.title, item.originalTitle) }))
+        .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
       sendResponse({
         watched,
+        recent,
         inProgress,
         activeCount: inProgress.length,
         connected: Boolean(connection?.token),
@@ -222,25 +247,31 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   const heartbeat = message.payload;
   chrome.storage.local.get([WATCHED_KEY, SESSIONS_KEY, CONNECTION_KEY]).then(async (data) => {
-    const key = identity(heartbeat.provider, heartbeat.title);
-    const watched = data[WATCHED_KEY] ?? {};
-    const sessions = data[SESSIONS_KEY] ?? {};
-    const previous = sessions[key] ?? {};
+    const key = ReelSync.sessionIdentity(heartbeat.provider, heartbeat.title, heartbeat.url);
+    const watched = ReelSync.normalizeSessionKeys(data[WATCHED_KEY] ?? {});
+    const sessions = ReelSync.normalizeSessionKeys(data[SESSIONS_KEY] ?? {});
+    const storedPrevious = sessions[key] ?? {};
+    const restartDismissed = ReelSync.shouldRestartDismissed(storedPrevious, heartbeat.playing);
+    const previous = restartDismissed ? {
+      displayTitle: storedPrevious.displayTitle,
+      originalTitle: storedPrevious.originalTitle,
+    } : storedPrevious;
+    const watchedItem = watched[key];
     const eventId = previous.eventId ?? crypto.randomUUID();
     const progress = ReelCoverage.playbackPercent(heartbeat.currentTime, heartbeat.duration);
-    const previouslyWatched = Boolean(watched[key]);
-    const justCompleted = ReelCoverage.isWatchedPosition(progress) && !previouslyWatched;
+    const previouslyWatched = Boolean(watchedItem);
+    const justCompleted = ReelCoverage.shouldRecordCompletion(progress, previouslyWatched, Boolean(previous.eventId));
 
-    if (previouslyWatched) {
-      delete sessions[key];
-      await chrome.storage.local.set({ [SESSIONS_KEY]: sessions });
-      sendResponse({ progress, previouslyWatched: true, justCompleted: false });
+    if (previous.dismissed) {
+      sendResponse({ progress, title: ReelSync.formatTitle(previous.displayTitle ?? heartbeat.title, previous.originalTitle), dismissed: true, previouslyWatched: false, justCompleted: false });
       return;
     }
 
     sessions[key] = {
       ...heartbeat,
       eventId,
+      displayTitle: previous.displayTitle ?? watchedItem?.displayTitle,
+      originalTitle: previous.originalTitle ?? watchedItem?.originalTitle,
       progress,
       updatedAt: heartbeat.observedAt,
     };
@@ -250,6 +281,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         eventId,
         provider: heartbeat.provider,
         title: heartbeat.title,
+        displayTitle: previous.displayTitle ?? watchedItem?.displayTitle,
+        originalTitle: previous.originalTitle ?? watchedItem?.originalTitle,
         url: heartbeat.url,
         duration: heartbeat.duration,
         progress,
@@ -259,16 +292,30 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     await chrome.storage.local.set({ [WATCHED_KEY]: watched, [SESSIONS_KEY]: sessions });
+    let displayTitle = previous.displayTitle ?? watchedItem?.displayTitle ?? heartbeat.title;
+    let originalTitle = previous.originalTitle ?? watchedItem?.originalTitle;
     if (justCompleted) {
-      await syncPending(watched, data[CONNECTION_KEY]);
+      const synced = await syncPending(watched, data[CONNECTION_KEY]);
+      displayTitle = synced[key]?.displayTitle ?? displayTitle;
+      originalTitle = synced[key]?.originalTitle ?? originalTitle;
     } else if (data[CONNECTION_KEY]?.token) {
       try {
-        await request("/api/extension/progress", ReelSync.toProgressPayload(sessions[key]), data[CONNECTION_KEY].token);
+        const result = await request("/api/extension/progress", ReelSync.toProgressPayload(sessions[key]), data[CONNECTION_KEY].token);
+        if (result.title) {
+          sessions[key].displayTitle = result.title;
+          displayTitle = result.title;
+        }
+        if (result.originalTitle) {
+          sessions[key].originalTitle = result.originalTitle;
+          originalTitle = result.originalTitle;
+        }
+        if (result.dismissed) sessions[key].dismissed = true;
+        if (result.title || result.originalTitle || result.dismissed) await chrome.storage.local.set({ [SESSIONS_KEY]: sessions });
       } catch (error) {
         if (error.status === 401) await chrome.storage.local.remove(CONNECTION_KEY);
       }
     }
-    sendResponse({ progress, previouslyWatched, justCompleted });
+    sendResponse({ progress, title: ReelSync.formatTitle(displayTitle, originalTitle), previouslyWatched, justCompleted });
   });
 
   return true;

@@ -12,6 +12,7 @@ type RawState = {
   watch_count: number;
   catalog_titles: {
     title: string;
+    original_title: string;
     release_year: number | null;
     media_type: "movie" | "tv";
     poster_path: string | null;
@@ -26,6 +27,14 @@ type RawProgress = {
   duration_seconds: number;
   current_time_seconds: number;
   progress_percent: number;
+  last_seen_at: string;
+};
+
+type RawUnmatchedWatch = {
+  id: string;
+  provider: string;
+  detected_title: string | null;
+  watched_at: string | null;
   last_seen_at: string;
 };
 
@@ -70,7 +79,7 @@ export const getViewer = cache(async (): Promise<{
     for (let from = 0; ; from += pageSize) {
       const { data, error } = await supabase
         .from("user_media_state")
-        .select("id,last_watched_at,watch_count,catalog_titles!inner(title,release_year,media_type,poster_path)")
+        .select("id,last_watched_at,watch_count,catalog_titles!inner(title,original_title,release_year,media_type,poster_path)")
         .eq("user_id", user.id)
         .is("episode_id", null)
         .order("last_watched_at", { ascending: false })
@@ -92,10 +101,37 @@ export const getViewer = cache(async (): Promise<{
     .from("extension_watch_progress")
     .select("id,provider,provider_item_id,detected_title,duration_seconds,current_time_seconds,progress_percent,last_seen_at")
     .eq("user_id", user.id)
+    .is("dismissed_at", null)
     .order("last_seen_at", { ascending: false })
     .limit(24);
 
-  const [rows, progressResult] = await Promise.all([watchedPromise, progressPromise]);
+  const unmatchedPromise = (async () => {
+    const rows: RawUnmatchedWatch[] = [];
+    const pageSize = 1000;
+
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await supabase
+        .from("watch_sessions")
+        .select("id,provider,detected_title,watched_at,last_seen_at")
+        .eq("user_id", user.id)
+        .eq("status", "watched")
+        .is("title_id", null)
+        .order("watched_at", { ascending: false })
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        console.error("Unmatched watch sessions query failed", JSON.stringify({ code: error.code, message: error.message, details: error.details, hint: error.hint }));
+        throw new Error("Riwayat yang belum cocok tidak dapat dimuat.");
+      }
+
+      const batch = data as RawUnmatchedWatch[];
+      rows.push(...batch);
+      if (batch.length < pageSize) break;
+    }
+    return rows;
+  })();
+
+  const [rows, progressResult, unmatchedRows] = await Promise.all([watchedPromise, progressPromise, unmatchedPromise]);
   if (progressResult.error) {
     console.error("In-progress titles query failed", JSON.stringify({
       code: progressResult.error.code,
@@ -110,15 +146,34 @@ export const getViewer = cache(async (): Promise<{
 
   return {
     user,
-    watched: rows.map((item) => ({
-      id: item.id,
-      title: item.catalog_titles.title,
-      year: item.catalog_titles.release_year,
-      mediaType: item.catalog_titles.media_type,
-      posterPath: item.catalog_titles.poster_path,
-      watchedAt: item.last_watched_at,
-      watchCount: item.watch_count,
-    })),
+    watched: [
+      ...rows.map((item) => ({
+        id: item.id,
+        title: item.catalog_titles.title,
+        originalTitle: item.catalog_titles.original_title,
+        year: item.catalog_titles.release_year,
+        mediaType: item.catalog_titles.media_type,
+        posterPath: item.catalog_titles.poster_path,
+        matched: true,
+        provider: null,
+        watchedAt: item.last_watched_at,
+        watchCount: item.watch_count,
+      } satisfies WatchedTitle)),
+      ...unmatchedRows
+        .filter((item) => item.detected_title?.trim())
+        .map((item) => ({
+          id: item.id,
+          title: item.detected_title!.trim(),
+          originalTitle: null,
+          year: null,
+          mediaType: null,
+          posterPath: null,
+          matched: false,
+          provider: item.provider,
+          watchedAt: item.watched_at ?? item.last_seen_at,
+          watchCount: 1,
+        } satisfies WatchedTitle)),
+    ].sort((a, b) => b.watchedAt.localeCompare(a.watchedAt)),
     inProgress: progressRows
       .filter((item) => isUsefulDetectedTitle(item.detected_title, item.provider))
       .slice(0, 8)

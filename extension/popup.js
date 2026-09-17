@@ -17,6 +17,7 @@ const deviceName = `Chrome / Edge · ${navigator.platform || "Browser"}`;
 
 function renderSummary(summary) {
   const watched = summary?.watched ?? [];
+  const recentWatched = summary?.recent ?? watched;
   const inProgress = summary?.inProgress ?? [];
   const connected = Boolean(summary?.connected);
   document.getElementById("watched-count").textContent = String(watched.length).padStart(2, "0");
@@ -53,11 +54,11 @@ function renderSummary(summary) {
     return row;
   }) : [Object.assign(document.createElement("li"), {
     className: "empty",
-    textContent: "Belum ada tontonan dalam progres.",
+    textContent: "Belum ada tontonan yang sedang berjalan.",
   })]));
 
   const recent = document.getElementById("recent");
-  recent.replaceChildren(...(watched.length ? watched.slice(0, 4).map((item) => {
+  recent.replaceChildren(...(recentWatched.length ? recentWatched.slice(0, 3).map((item) => {
     const row = document.createElement("li");
     const title = document.createElement("strong");
     const provider = document.createElement("span");

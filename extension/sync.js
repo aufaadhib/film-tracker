@@ -21,11 +21,20 @@
     return Boolean(normalized) && !(genericTitles[provider] ?? []).includes(withoutNotificationCount);
   }
 
+  function formatTitle(title, originalTitle) {
+    const localized = String(title ?? "").trim();
+    const original = String(originalTitle ?? "").trim();
+    if (!original || localized.normalize("NFKC").toLocaleLowerCase() === original.normalize("NFKC").toLocaleLowerCase()) {
+      return localized;
+    }
+    return `${localized} (${original})`;
+  }
+
   function listInProgress(sessions) {
     return Object.values(sessions ?? {})
-      .filter((item) => item && isUsefulTitle(item.title, item.provider))
+      .filter((item) => item && !item.dismissed && isUsefulTitle(item.title, item.provider))
       .map((item) => ({
-        title: item.title.trim(),
+        title: formatTitle(item.displayTitle ?? item.title, item.originalTitle),
         provider: item.provider,
         progress: Math.max(0, Math.min(100, Math.round(Number(item.progress) || 0))),
         updatedAt: item.updatedAt ?? "",
@@ -33,11 +42,17 @@
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
+  function shouldRestartDismissed(item, playing) {
+    return Boolean(item?.dismissed && playing);
+  }
+
   function toSyncPayload(item) {
     return {
       eventId: item.eventId,
       provider: item.provider,
       title: item.title,
+      canonicalTitle: item.displayTitle ?? null,
+      originalTitle: item.originalTitle ?? null,
       url: item.url ?? null,
       duration: Number.isInteger(item.duration) && item.duration > 0 ? item.duration : null,
       progress: item.progress ?? item.coverage,
@@ -50,6 +65,8 @@
       eventId: item.eventId,
       provider: item.provider,
       title: item.title,
+      canonicalTitle: item.displayTitle ?? null,
+      originalTitle: item.originalTitle ?? null,
       url: item.url ?? null,
       duration: item.duration,
       currentTime: item.currentTime,
@@ -58,7 +75,38 @@
     };
   }
 
-  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, listInProgress, toSyncPayload, toProgressPayload };
+  function sessionIdentity(provider, title, value) {
+    const providerHosts = {
+      netflix: "www.netflix.com",
+      disney: "www.disneyplus.com",
+      prime_video: "www.primevideo.com",
+      max: "play.max.com",
+    };
+    try {
+      const url = new URL(value);
+      if (url.protocol === "https:" && url.hostname === providerHosts[provider] && url.pathname !== "/") {
+        return `${provider}:${url.origin}${url.pathname.replace(/\/$/, "")}`;
+      }
+    } catch {}
+    return `${provider}:${String(title).toLocaleLowerCase().replace(/\s+/g, " ").trim()}`;
+  }
+
+  function normalizeSessionKeys(records) {
+    let normalized = records ?? {};
+    for (const [key, item] of Object.entries(records ?? {})) {
+      const expected = sessionIdentity(item.provider, item.title, item.url);
+      if (expected === key) continue;
+      if (normalized === records) normalized = { ...records };
+      const existing = normalized[expected];
+      const itemTime = item.updatedAt ?? item.watchedAt ?? "";
+      const existingTime = existing?.updatedAt ?? existing?.watchedAt ?? "";
+      if (!existing || itemTime >= existingTime) normalized[expected] = item;
+      delete normalized[key];
+    }
+    return normalized;
+  }
+
+  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, formatTitle, listInProgress, shouldRestartDismissed, toSyncPayload, toProgressPayload, sessionIdentity, normalizeSessionKeys };
   root.ReelSync = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);

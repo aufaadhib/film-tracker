@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import type { CatalogResult } from "@/lib/catalog";
+import { resolveNetflixEnglishTitle } from "@/lib/provider-title";
 import { mergeLocalizedTitle } from "@/lib/tmdb-localization";
 
 const responseSchema = z.object({
@@ -222,4 +223,45 @@ export async function searchCatalog(query: string): Promise<{
     ],
     source: "tmdb",
   };
+}
+
+function normalizeComparableTitle(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("en-US")
+    .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
+    .trim();
+}
+
+export function findExactCatalogMatch(query: string, results: CatalogResult[]) {
+  const normalized = normalizeComparableTitle(query);
+  return results.find((item) =>
+    normalizeComparableTitle(item.title) === normalized
+      || normalizeComparableTitle(item.originalTitle) === normalized,
+  ) ?? null;
+}
+
+export async function resolveCatalogMatch({
+  canonicalTitle,
+  detectedTitle,
+  provider,
+  providerUrl,
+}: {
+  canonicalTitle?: string | null;
+  detectedTitle: string;
+  provider: string;
+  providerUrl?: string | null;
+}) {
+  const netflixTitle = canonicalTitle?.trim()
+    || (provider === "netflix" ? await resolveNetflixEnglishTitle(providerUrl) : null);
+  const candidates = [...new Set([netflixTitle, detectedTitle].filter((title): title is string => Boolean(title)))];
+
+  for (const candidate of candidates) {
+    const catalog = await searchCatalog(candidate);
+    const match = findExactCatalogMatch(candidate, catalog.results);
+    if (match) return match;
+  }
+
+  return null;
 }

@@ -105,6 +105,7 @@ async function sendHeartbeat(force = false) {
         url: location.href,
         duration: Math.round(activeVideo.duration),
         currentTime: Math.round(activeVideo.currentTime),
+        playing: !activeVideo.paused,
         observedAt: new Date().toISOString(),
       },
     });
@@ -117,10 +118,10 @@ async function sendHeartbeat(force = false) {
   if (!response) return;
   if (response.previouslyWatched && warningShownFor !== activeTitle) {
     warningShownFor = activeTitle;
-    showNotice(activeTitle, "Judul ini sudah pernah kamu tonton.");
+    showNotice(response.title ?? activeTitle, "Judul ini sudah pernah kamu tonton.");
   } else if (response.justCompleted) {
     warningShownFor = activeTitle;
-    showNotice(activeTitle, "Posisi video mencapai 80%. Ditandai sebagai sudah ditonton.");
+    showNotice(response.title ?? activeTitle, "Posisi video mencapai 80%. Ditandai sebagai sudah ditonton.");
   }
 }
 

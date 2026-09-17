@@ -16,7 +16,7 @@ export default async function HistoryPage({ searchParams }: PageProps<"/dashboar
   const { watched } = await getViewer();
   const filtered = watched
     .filter((item) => type === "all" || item.mediaType === type)
-    .filter((item) => !q || item.title.toLocaleLowerCase("id-ID").includes(q.toLocaleLowerCase("id-ID")))
+    .filter((item) => !q || `${item.title} ${item.originalTitle}`.toLocaleLowerCase("id-ID").includes(q.toLocaleLowerCase("id-ID")))
     .sort((a, b) => sort === "title" ? a.title.localeCompare(b.title, "id-ID") : sort === "oldest" ? Date.parse(a.watchedAt) - Date.parse(b.watchedAt) : Date.parse(b.watchedAt) - Date.parse(a.watchedAt));
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pages);

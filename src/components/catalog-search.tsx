@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { CatalogSearchItem } from "@/lib/catalog";
+import { formatDisplayTitle, type CatalogSearchItem } from "@/lib/catalog";
 import { CheckIcon, SearchIcon } from "@/components/icons";
 import styles from "./catalog-search.module.css";
 
@@ -76,7 +76,7 @@ export function CatalogSearch() {
       setMessage(
         payload.mode === "demo"
           ? "Tersimpan untuk sesi demo. Hubungkan Supabase agar sinkron antarperangkat."
-          : `${title.title} ditambahkan ke riwayat.`,
+          : `${formatDisplayTitle(title.title, title.originalTitle)} ditambahkan ke riwayat.`,
       );
       router.refresh();
     } catch (error) {
@@ -144,8 +144,7 @@ export function CatalogSearch() {
                     {title.voteAverage > 0 && <span>★ {title.voteAverage.toFixed(1)}</span>}
                     {title.watched && <span>{title.watched.watchCount}× ditonton</span>}
                   </div>
-                  <h3>{title.title}</h3>
-                  {title.originalTitle !== title.title && <small>{title.originalTitle}</small>}
+                  <h3>{formatDisplayTitle(title.title, title.originalTitle)}</h3>
                   <p>{title.overview}</p>
                 </div>
                 <button

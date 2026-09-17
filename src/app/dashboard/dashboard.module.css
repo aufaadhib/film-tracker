@@ -31,6 +31,12 @@
 .continueCard small { max-width: 52%; color: var(--muted); font-size: .5rem; line-height: 1.35; }
 .continueCard a { color: var(--reel-blue); font-size: .58rem; font-weight: 800; text-align: right; }
 .continueCard a:hover { color: var(--ink); }
+.continueActions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.continueDeleteForm { display: grid; justify-items: end; gap: 4px; }
+.continueDeleteForm button { display: inline-flex; min-height: 32px; align-items: center; gap: 5px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; color: #a33b38; background: transparent; cursor: pointer; font-size: .56rem; font-weight: 750; }
+.continueDeleteForm button:hover { border-color: #bc3e3a; background: rgb(188 62 58 / 7%); }
+.continueDeleteForm button:disabled { cursor: wait; opacity: .55; }
+.continueDeleteForm small { max-width: 170px; color: #a33b38; text-align: right; }
 .continueEmpty { display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--reel-blue); background: var(--surface-soft); }
 .continueEmpty div { min-width: 0; }
 .continueEmpty strong { color: var(--ink); font-size: .72rem; }
@@ -114,5 +120,5 @@
 @media (min-width: 1000px) { .grid { grid-template-columns: minmax(0, 1.45fr) minmax(290px, .65fr); } .continueGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .featureGrid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 620px) { .pageHeader { align-items: start; flex-direction: column; } }
 @media (max-width: 520px) { .deviceList li { align-items: stretch; flex-direction: column; } .deviceList button { width: 100%; min-height: 38px; } .pairingCard form, .pairingCard button { width: 100%; } }
-@media (max-width: 520px) { .continuePanel .panelHead { align-items: start; flex-direction: column; } .continueCard footer { align-items: start; flex-direction: column; } .continueCard small { max-width: none; } .continueCard a { text-align: left; } }
+@media (max-width: 520px) { .continuePanel .panelHead { align-items: start; flex-direction: column; } .continueCard footer { align-items: start; flex-direction: column; } .continueCard small { max-width: none; } .continueActions { width: 100%; justify-content: space-between; } .continueCard a { text-align: left; } }
 @media (prefers-reduced-motion: reduce) { .loadingPage { animation: none; } }

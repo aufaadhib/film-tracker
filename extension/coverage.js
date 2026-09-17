@@ -8,7 +8,11 @@
     return Number.isFinite(progress) && progress >= 80;
   }
 
-  const api = { playbackPercent, isWatchedPosition };
+  function shouldRecordCompletion(progress, previouslyWatched, hadActiveSession) {
+    return isWatchedPosition(progress) && (!previouslyWatched || hadActiveSession);
+  }
+
+  const api = { playbackPercent, isWatchedPosition, shouldRecordCompletion };
   root.ReelCoverage = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);

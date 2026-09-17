@@ -1,12 +1,16 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { formatDisplayTitle } from "@/lib/catalog";
 import { isUsefulDetectedTitle } from "@/lib/extension-title";
 import { createClient } from "@/lib/supabase/server";
+import { resolveCatalogMatch } from "@/lib/tmdb";
 
 const progressSchema = z.object({
   eventId: z.string().uuid(),
   provider: z.enum(["netflix", "disney", "prime_video", "max"]),
   title: z.string().trim().min(1).max(300),
+  canonicalTitle: z.string().trim().min(1).max(300).nullable().optional(),
+  originalTitle: z.string().trim().min(1).max(300).nullable().optional(),
   url: z.string().url().max(2048).nullable().optional(),
   duration: z.number().int().positive().max(24 * 60 * 60),
   currentTime: z.number().int().nonnegative().max(24 * 60 * 60),
@@ -31,6 +35,38 @@ function safeProviderUrl(provider: keyof typeof providerHosts, value?: string | 
   const url = new URL(value);
   if (url.hostname !== providerHosts[provider]) return null;
   return `${url.origin}${url.pathname}`.slice(0, 1000);
+}
+
+function syncFailure(
+  data: unknown,
+  error: { code?: string; message: string } | null,
+) {
+  if (error) {
+    console.error("Extension progress sync failed", JSON.stringify({ code: error.code, message: error.message }));
+    return Response.json({ error: "Progres belum berhasil disinkronkan." }, {
+      status: 503,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+
+  const result = data as { authenticated?: boolean; synced?: boolean } | null;
+  if (!result?.authenticated) {
+    return Response.json({ error: "Pairing extension tidak lagi valid." }, {
+      status: 401,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+  if (!result.synced) {
+    return Response.json({ error: "Progres ditolak karena datanya tidak valid." }, {
+      status: 400,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+  return null;
+}
+
+function wasDismissed(data: unknown) {
+  return Boolean((data as { dismissed?: boolean } | null)?.dismissed);
 }
 
 export async function POST(request: Request) {
@@ -70,12 +106,13 @@ export async function POST(request: Request) {
     });
   }
 
-  const { data, error } = await supabase.rpc("sync_extension_progress", {
+  const providerItemId = safeProviderUrl(body.data.provider, body.data.url);
+  const syncProgress = (title: string) => supabase.rpc("sync_extension_progress", {
     p_token_hash: hash(token),
     p_event_id: body.data.eventId,
     p_provider: body.data.provider,
-    p_provider_item_id: safeProviderUrl(body.data.provider, body.data.url),
-    p_detected_title: body.data.title,
+    p_provider_item_id: providerItemId,
+    p_detected_title: title,
     p_duration_seconds: body.data.duration,
     p_current_time_seconds: Math.min(body.data.currentTime, body.data.duration),
     p_progress_percent: body.data.progress,
@@ -83,27 +120,47 @@ export async function POST(request: Request) {
     p_observed_at: body.data.observedAt,
   });
 
-  if (error) {
-    console.error("Extension progress sync failed", JSON.stringify({ code: error.code, message: error.message }));
-    return Response.json({ error: "Progres belum berhasil disinkronkan." }, {
-      status: 503,
+  let canonicalTitle = body.data.canonicalTitle ?? body.data.title;
+  let originalTitle = body.data.originalTitle ?? null;
+  let storedTitle = formatDisplayTitle(canonicalTitle, originalTitle).slice(0, 300);
+  let matched = Boolean(body.data.canonicalTitle);
+  let syncResult = await syncProgress(storedTitle);
+  let failure = syncFailure(syncResult.data, syncResult.error);
+  if (failure) return failure;
+  if (wasDismissed(syncResult.data)) {
+    return Response.json({ synced: true, dismissed: true, title: canonicalTitle, originalTitle }, {
       headers: { "Cache-Control": "no-store" },
     });
   }
 
-  const result = data as { authenticated?: boolean; synced?: boolean } | null;
-  if (!result?.authenticated) {
-    return Response.json({ error: "Pairing extension tidak lagi valid." }, {
-      status: 401,
-      headers: { "Cache-Control": "no-store" },
-    });
-  }
-  if (!result.synced) {
-    return Response.json({ error: "Progres ditolak karena datanya tidak valid." }, {
-      status: 400,
-      headers: { "Cache-Control": "no-store" },
-    });
+  if (!body.data.canonicalTitle || !body.data.originalTitle) {
+    try {
+      const catalog = await resolveCatalogMatch({
+        canonicalTitle: body.data.canonicalTitle,
+        detectedTitle: body.data.title,
+        provider: body.data.provider,
+        providerUrl: body.data.url,
+      });
+      if (catalog) {
+        canonicalTitle = catalog.title;
+        originalTitle = catalog.originalTitle;
+        storedTitle = formatDisplayTitle(canonicalTitle, originalTitle).slice(0, 300);
+        matched = true;
+        syncResult = await syncProgress(storedTitle);
+        failure = syncFailure(syncResult.data, syncResult.error);
+        if (failure) return failure;
+        if (wasDismissed(syncResult.data)) {
+          return Response.json({ synced: true, dismissed: true, title: canonicalTitle, originalTitle }, {
+            headers: { "Cache-Control": "no-store" },
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Extension progress catalog match failed", error);
+    }
   }
 
-  return Response.json({ synced: true }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ synced: true, matched, dismissed: false, title: canonicalTitle, originalTitle }, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }
