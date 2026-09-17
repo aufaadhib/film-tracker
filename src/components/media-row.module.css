@@ -5,8 +5,15 @@
 .copy p { margin: 0 0 5px; color: var(--reel-blue); font-family: var(--font-mono), monospace; font-size: .47rem; letter-spacing: .07em; }
 .copy h3 { margin: 0 0 6px; overflow: hidden; font-family: var(--font-display), sans-serif; font-size: .94rem; letter-spacing: -.025em; text-overflow: ellipsis; white-space: nowrap; }
 .copy span { color: var(--muted); font-size: .61rem; }
+.actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
 .count { display: grid; justify-items: end; gap: 2px; }
 .count strong { font-family: var(--font-mono), monospace; font-size: .68rem; font-variant-numeric: tabular-nums; }
 .count span { color: var(--muted); font-size: .53rem; }
 .status { display: none; padding: 6px 8px; border-radius: 7px; color: #0b3324; background: var(--watched-mint); font-family: var(--font-mono), monospace; font-size: .46rem; font-weight: 700; letter-spacing: .05em; }
-@media (min-width: 620px) { .row { grid-template-columns: 58px minmax(0, 1fr) 70px 70px; gap: 16px; } .poster { width: 58px; height: 80px; } .status { display: inline-block; justify-self: end; } }
+.deleteForm { display: grid; justify-items: end; gap: 4px; }
+.deleteForm button { display: inline-flex; min-height: 34px; align-items: center; gap: 5px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; color: #a33b38; background: transparent; cursor: pointer; font-size: .57rem; font-weight: 750; }
+.deleteForm button:hover { border-color: #bc3e3a; background: rgb(188 62 58 / 7%); }
+.deleteForm button:disabled { cursor: wait; opacity: .55; }
+.deleteForm small { max-width: 150px; color: #a33b38; font-size: .52rem; line-height: 1.35; text-align: right; }
+@media (min-width: 620px) { .row { grid-template-columns: 58px minmax(0, 1fr) auto; gap: 16px; } .poster { width: 58px; height: 80px; } .status { display: inline-block; } }
+@media (max-width: 480px) { .actions { align-items: flex-end; flex-direction: column; } .deleteForm button span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); } .deleteForm button { width: 34px; justify-content: center; padding: 0; } }

@@ -59,3 +59,7 @@ export function SunIcon({ size = 20, className }: IconProps) {
 export function LogoutIcon({ size = 20, className }: IconProps) {
   return <svg {...base(size)} className={className}><path d="M10 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h5"/><path d="M14 8l4 4-4 4M18 12H8"/></svg>;
 }
+
+export function TrashIcon({ size = 20, className }: IconProps) {
+  return <svg {...base(size)} className={className}><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6M14 11v6"/></svg>;
+}
