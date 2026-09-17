@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Reelmark Watch Detector",
+  "version": "0.2.0",
+  "description": "Mendeteksi film dan episode yang selesai ditonton di layanan streaming.",
+  "permissions": ["storage", "identity"],
+  "host_permissions": [
+    "https://www.netflix.com/*",
+    "https://www.disneyplus.com/*",
+    "https://www.primevideo.com/*",
+    "https://play.max.com/*",
+    "http://localhost:3000/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Reelmark",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.netflix.com/*",
+        "https://www.disneyplus.com/*",
+        "https://www.primevideo.com/*",
+        "https://play.max.com/*"
+      ],
+      "js": ["coverage.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

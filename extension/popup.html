@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reelmark</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header><span class="reel">◉</span><strong>REELMARK</strong><span class="live">AKTIF</span></header>
+    <main>
+      <p class="eyebrow">DETEKTOR BROWSER</p>
+      <h1>Tonton seperti biasa.</h1>
+      <p class="intro">Judul ditandai selesai setelah 80% bagian unik terputar.</p>
+      <section class="connection" aria-labelledby="connection-title">
+        <div class="connection-head"><h2 id="connection-title">Sinkronisasi akun</h2><span id="connection-state">Belum terhubung</span></div>
+        <button id="login-button" class="login-button" type="button"><b>G</b> Masuk dengan Google</button>
+        <button id="disconnect-button" class="disconnect-button" type="button" hidden>Putuskan akun</button>
+        <details id="manual-recovery">
+          <summary>Pemulihan manual</summary>
+          <form id="pair-form">
+            <label for="pair-code">Kode dari dashboard</label>
+            <div><input id="pair-code" name="code" inputmode="text" autocomplete="one-time-code" maxlength="9" placeholder="ABCD 2345" required /><button type="submit">Hubungkan</button></div>
+          </form>
+        </details>
+        <p id="pair-message" class="pair-message" role="status" aria-live="polite">Masuk sekali untuk menyinkronkan tontonan ke akunmu.</p>
+      </section>
+      <div class="summary"><span><strong id="watched-count">—</strong> ditonton</span><span><strong id="active-count">—</strong> aktif</span></div>
+      <section>
+        <h2>Baru terdeteksi</h2>
+        <ol id="recent"><li class="empty">Belum ada tontonan yang selesai.</li></ol>
+      </section>
+    </main>
+    <footer id="footer-state">Data disimpan lokal sampai akun dihubungkan.</footer>
+    <script src="popup.js"></script>
+  </body>
+</html>

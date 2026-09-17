@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Reelmark
 
-## Getting Started
+Pelacak film dan episode yang sudah ditonton. Vertical slice saat ini mencakup dashboard responsif, pencarian TMDB, login Supabase, pencatatan manual, serta extension Manifest V3 dengan pairing dan antrean sinkronisasi.
 
-First, run the development server:
+## Menjalankan lokal
+
+1. Salin `.env.example` menjadi `.env.local`.
+2. Login dan hubungkan Supabase CLI dengan `npx supabase login` lalu `npm run db:link`.
+3. Periksa dan jalankan migration dengan `npm run db:push:dry` lalu `npm run db:push`.
+4. Aktifkan Google OAuth di Supabase bila diperlukan. Tambahkan `http://localhost:3000/auth/callback` sebagai redirect URL.
+5. Buat TMDB API Read Access Token dan isi `TMDB_READ_ACCESS_TOKEN`.
+6. Jalankan `npm run dev`.
+7. Setelah extension dimuat, salin ID extension dari `chrome://extensions`, isi `REELMARK_EXTENSION_IDS`, lalu restart server.
+8. Buka popup extension dan pilih **Masuk dengan Google**. Kode pairing di dashboard tetap tersedia sebagai pemulihan manual.
+
+Untuk mencoba deteksi otomatis, muat folder `extension/` sebagai unpacked extension. Petunjuk lengkap ada di `extension/README.md`.
+
+Tanpa environment variable, dashboard dan pencarian tetap berjalan dalam mode demo. Data yang ditandai pada mode ini hanya berlaku untuk sesi UI dan tidak disimpan ke server.
+
+### Menyiapkan login Google
+
+1. Di Google Cloud Console, buat OAuth Client ID bertipe **Web application**.
+2. Isi **Authorized redirect URI** dengan `https://<project-ref>.supabase.co/auth/v1/callback`.
+3. Di Supabase Dashboard → Authentication → Providers → Google, aktifkan provider lalu masukkan Client ID dan Client Secret dari Google.
+4. Di Supabase Dashboard → Authentication → URL Configuration, isi Site URL `http://localhost:3000` dan tambahkan `http://localhost:3000/auth/callback` ke Redirect URLs.
+5. Restart `npm run dev` setelah mengubah environment variable lokal.
+
+## Pemeriksaan
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm run build
+npm run test:extension
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+UI ditata untuk tiga breakpoint utama: mobile di bawah 768 px, tablet 768–1199 px, dan desktop mulai 1200 px.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Data film
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Produk ini menggunakan TMDB API. Reelmark tidak didukung atau disertifikasi oleh TMDB.
 
-## Learn More
+## Batas versi awal
 
-To learn more about Next.js, take a look at the following resources:
+Login extension menggunakan alur OAuth web, tetapi extension hanya menerima token perangkat terbatas yang disimpan dalam bentuk hash di database. Sinkronisasi saat ini otomatis memasukkan hasil dengan kecocokan judul TMDB yang persis; judul ambigu dan detail episode masih membutuhkan alur konfirmasi pada tahap berikutnya.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Extension beta saat ini mengarah ke `http://localhost:3000`. Sebelum distribusi production, ubah `apiBase` di `extension/sync.js` dan tambahkan origin production yang spesifik ke `host_permissions` pada manifest.

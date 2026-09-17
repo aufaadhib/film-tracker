@@ -1,0 +1,12 @@
+.row { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.poster { position: relative; display: grid; width: 48px; height: 66px; place-items: center; overflow: hidden; border-radius: 8px; color: var(--reel-blue); background: var(--surface-soft); }
+.poster img { object-fit: cover; }
+.copy { min-width: 0; }
+.copy p { margin: 0 0 5px; color: var(--reel-blue); font-family: var(--font-mono), monospace; font-size: .47rem; letter-spacing: .07em; }
+.copy h3 { margin: 0 0 6px; overflow: hidden; font-family: var(--font-display), sans-serif; font-size: .94rem; letter-spacing: -.025em; text-overflow: ellipsis; white-space: nowrap; }
+.copy span { color: var(--muted); font-size: .61rem; }
+.count { display: grid; justify-items: end; gap: 2px; }
+.count strong { font-family: var(--font-mono), monospace; font-size: .68rem; font-variant-numeric: tabular-nums; }
+.count span { color: var(--muted); font-size: .53rem; }
+.status { display: none; padding: 6px 8px; border-radius: 7px; color: #0b3324; background: var(--watched-mint); font-family: var(--font-mono), monospace; font-size: .46rem; font-weight: 700; letter-spacing: .05em; }
+@media (min-width: 620px) { .row { grid-template-columns: 58px minmax(0, 1fr) 70px 70px; gap: 16px; } .poster { width: 58px; height: 80px; } .status { display: inline-block; justify-self: end; } }
