@@ -145,6 +145,7 @@ export function CatalogSearch() {
                     {title.watched && <span>{title.watched.watchCount}× ditonton</span>}
                   </div>
                   <h3>{title.title}</h3>
+                  {title.originalTitle !== title.title && <small>{title.originalTitle}</small>}
                   <p>{title.overview}</p>
                 </div>
                 <button

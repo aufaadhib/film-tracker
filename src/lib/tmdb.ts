@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import type { CatalogResult } from "@/lib/catalog";
+import { mergeLocalizedTitle } from "@/lib/tmdb-localization";
 
 const responseSchema = z.object({
   results: z.array(
@@ -13,6 +14,7 @@ const responseSchema = z.object({
         name: z.string().optional(),
         original_title: z.string().optional(),
         original_name: z.string().optional(),
+        original_language: z.string().nullable().optional(),
         release_date: z.string().nullable().optional(),
         first_air_date: z.string().nullable().optional(),
         overview: z.string().nullable().optional(),
@@ -30,6 +32,7 @@ const detailSchema = z.object({
   name: z.string().optional(),
   original_title: z.string().optional(),
   original_name: z.string().optional(),
+  original_language: z.string().nullable().optional(),
   release_date: z.string().nullable().optional(),
   first_air_date: z.string().nullable().optional(),
   overview: z.string().nullable().optional(),
@@ -85,7 +88,9 @@ const demoCatalog: CatalogResult[] = [
   },
 ];
 
-function normalize(item: z.infer<typeof responseSchema>["results"][number]): CatalogResult | null {
+type LocalizedResult = { catalog: CatalogResult; originalLanguage: string | null };
+
+function normalize(item: z.infer<typeof responseSchema>["results"][number]): LocalizedResult | null {
   if (item.media_type === "person") return null;
 
   const title = item.title ?? item.name;
@@ -95,15 +100,18 @@ function normalize(item: z.infer<typeof responseSchema>["results"][number]): Cat
   const parsedYear = date ? Number(date.slice(0, 4)) : Number.NaN;
 
   return {
-    tmdbId: item.id,
-    mediaType: item.media_type,
-    title,
-    originalTitle: item.original_title ?? item.original_name ?? title,
-    year: Number.isInteger(parsedYear) ? parsedYear : null,
-    overview: item.overview ?? "Sinopsis belum tersedia.",
-    posterPath: item.poster_path ?? null,
-    backdropPath: item.backdrop_path ?? null,
-    voteAverage: item.vote_average ?? 0,
+    originalLanguage: item.original_language ?? null,
+    catalog: {
+      tmdbId: item.id,
+      mediaType: item.media_type,
+      title,
+      originalTitle: item.original_title ?? item.original_name ?? title,
+      year: Number.isInteger(parsedYear) ? parsedYear : null,
+      overview: item.overview || "Sinopsis belum tersedia.",
+      posterPath: item.poster_path ?? null,
+      backdropPath: item.backdrop_path ?? null,
+      voteAverage: item.vote_average ?? 0,
+    },
   };
 }
 
@@ -126,17 +134,13 @@ async function searchLanguage(query: string, language: "id-ID" | "en-US") {
 
   return responseSchema.parse(await response.json()).results
     .map(normalize)
-    .filter((item): item is CatalogResult => item !== null);
+    .filter((item): item is LocalizedResult => item !== null);
 }
 
-export async function getCatalogTitle(tmdbId: number, mediaType: "movie" | "tv"): Promise<CatalogResult | null> {
-  const token = process.env.TMDB_READ_ACCESS_TOKEN;
-  if (!token) {
-    return demoCatalog.find((item) => item.tmdbId === tmdbId && item.mediaType === mediaType) ?? null;
-  }
-
+async function getTitleLanguage(tmdbId: number, mediaType: "movie" | "tv", language: "id-ID" | "en-US") {
+  const token = process.env.TMDB_READ_ACCESS_TOKEN!;
   const url = new URL(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}`);
-  url.searchParams.set("language", "id-ID");
+  url.searchParams.set("language", language);
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
     next: { revalidate: 3600 },
@@ -152,16 +156,34 @@ export async function getCatalogTitle(tmdbId: number, mediaType: "movie" | "tv")
   const year = date ? Number(date.slice(0, 4)) : Number.NaN;
 
   return {
-    tmdbId: item.id,
-    mediaType,
-    title,
-    originalTitle: item.original_title ?? item.original_name ?? title,
-    year: Number.isInteger(year) ? year : null,
-    overview: item.overview ?? "Sinopsis belum tersedia.",
-    posterPath: item.poster_path ?? null,
-    backdropPath: item.backdrop_path ?? null,
-    voteAverage: item.vote_average ?? 0,
-  };
+    originalLanguage: item.original_language ?? null,
+    catalog: {
+      tmdbId: item.id,
+      mediaType,
+      title,
+      originalTitle: item.original_title ?? item.original_name ?? title,
+      year: Number.isInteger(year) ? year : null,
+      overview: item.overview || "Sinopsis belum tersedia.",
+      posterPath: item.poster_path ?? null,
+      backdropPath: item.backdrop_path ?? null,
+      voteAverage: item.vote_average ?? 0,
+    },
+  } satisfies LocalizedResult;
+}
+
+export async function getCatalogTitle(tmdbId: number, mediaType: "movie" | "tv"): Promise<CatalogResult | null> {
+  const token = process.env.TMDB_READ_ACCESS_TOKEN;
+  if (!token) {
+    return demoCatalog.find((item) => item.tmdbId === tmdbId && item.mediaType === mediaType) ?? null;
+  }
+
+  const [indonesian, english] = await Promise.all([
+    getTitleLanguage(tmdbId, mediaType, "id-ID"),
+    getTitleLanguage(tmdbId, mediaType, "en-US"),
+  ]);
+  return indonesian
+    ? mergeLocalizedTitle(indonesian.catalog, english?.catalog, indonesian.originalLanguage)
+    : english?.catalog ?? null;
 }
 
 export async function searchCatalog(query: string): Promise<{
@@ -178,9 +200,26 @@ export async function searchCatalog(query: string): Promise<{
     };
   }
 
-  const indonesian = await searchLanguage(query, "id-ID");
+  const [indonesian, english] = await Promise.all([
+    searchLanguage(query, "id-ID"),
+    searchLanguage(query, "en-US"),
+  ]);
+  const englishById = new Map(english.map((item) => [`${item.catalog.mediaType}:${item.catalog.tmdbId}`, item.catalog]));
+  const localized = indonesian.map((item) =>
+    mergeLocalizedTitle(
+      item.catalog,
+      englishById.get(`${item.catalog.mediaType}:${item.catalog.tmdbId}`),
+      item.originalLanguage,
+    ),
+  );
+  const localizedIds = new Set(localized.map((item) => `${item.mediaType}:${item.tmdbId}`));
   return {
-    results: indonesian.length ? indonesian : await searchLanguage(query, "en-US"),
+    results: [
+      ...localized,
+      ...english
+        .map((item) => item.catalog)
+        .filter((item) => !localizedIds.has(`${item.mediaType}:${item.tmdbId}`)),
+    ],
     source: "tmdb",
   };
 }
