@@ -40,9 +40,11 @@ function cleanTitle(value) {
 function detectTitle() {
   for (const selector of TITLE_SELECTORS[provider] ?? []) {
     const value = document.querySelector(selector)?.textContent;
-    if (value?.trim()) return cleanTitle(value);
+    const title = cleanTitle(value ?? "");
+    if (ReelSync.isUsefulTitle(title, provider)) return title;
   }
-  return cleanTitle(document.title);
+  const fallback = cleanTitle(document.title);
+  return ReelSync.isUsefulTitle(fallback, provider) ? fallback : "";
 }
 
 function showNotice(title, message) {
@@ -99,6 +101,7 @@ async function sendHeartbeat(force = false) {
       title: activeTitle,
       url: location.href,
       duration: Math.round(activeVideo.duration),
+      currentTime: Math.round(activeVideo.currentTime),
       buckets: [...watchedBuckets],
       observedAt: new Date().toISOString(),
     },

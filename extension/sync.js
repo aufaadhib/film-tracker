@@ -9,12 +9,24 @@
     return item.eventId ? item : { ...item, eventId };
   }
 
+  function isUsefulTitle(title, provider) {
+    const normalized = String(title ?? "").trim().toLocaleLowerCase();
+    const genericTitles = {
+      netflix: ["netflix"],
+      disney: ["disney+", "disney plus"],
+      prime_video: ["prime video", "amazon prime video"],
+      max: ["max", "hbo max"],
+    };
+    return Boolean(normalized) && !(genericTitles[provider] ?? []).includes(normalized);
+  }
+
   function listInProgress(sessions) {
     return Object.values(sessions ?? {})
-      .filter((item) => item && typeof item.title === "string" && item.title.trim())
+      .filter((item) => item && isUsefulTitle(item.title, item.provider))
       .map((item) => ({
         title: item.title.trim(),
         provider: item.provider,
+        progress: Math.max(0, Math.min(100, Math.round(Number(item.progress) || 0))),
         coverage: Math.max(0, Math.min(100, Math.round(Number(item.coverage) || 0))),
         updatedAt: item.updatedAt ?? "",
       }))
@@ -33,7 +45,7 @@
     };
   }
 
-  const api = { apiBase, normalizePairCode, prepareWatchedItem, listInProgress, toSyncPayload };
+  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, listInProgress, toSyncPayload };
   root.ReelSync = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);

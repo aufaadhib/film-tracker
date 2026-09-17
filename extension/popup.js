@@ -43,11 +43,11 @@ function renderSummary(summary) {
     const provider = document.createElement("small");
     const progress = document.createElement("progress");
     title.textContent = item.title;
-    percent.textContent = `${item.coverage}%`;
-    provider.textContent = providerLabels[item.provider] ?? item.provider;
+    percent.textContent = `${item.progress}%`;
+    provider.textContent = `${providerLabels[item.provider] ?? item.provider} · ${item.coverage}% bagian unik terpantau`;
     progress.max = 100;
-    progress.value = item.coverage;
-    progress.setAttribute("aria-label", `Progres ${item.title}: ${item.coverage}%`);
+    progress.value = item.progress;
+    progress.setAttribute("aria-label", `Posisi tontonan ${item.title}: ${item.progress}%`);
     heading.append(title, percent);
     row.append(heading, progress, provider);
     return row;

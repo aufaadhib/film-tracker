@@ -193,6 +193,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const previous = sessions[key] ?? { buckets: [] };
     const buckets = [...new Set([...previous.buckets, ...heartbeat.buckets])];
     const coverage = ReelCoverage.coveragePercent(buckets, heartbeat.duration);
+    const progress = ReelCoverage.playbackPercent(heartbeat.currentTime, heartbeat.duration);
     const previouslyWatched = Boolean(watched[key]);
     const justCompleted = coverage >= 80 && !previouslyWatched;
 
@@ -200,6 +201,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       ...heartbeat,
       buckets,
       coverage,
+      progress,
       updatedAt: heartbeat.observedAt,
     };
 

@@ -9,7 +9,12 @@
     return Math.min(100, Math.round((new Set(buckets).size / totalBuckets) * 10000) / 100);
   }
 
-  const api = { bucketFor, coveragePercent };
+  function playbackPercent(currentTime, duration) {
+    if (!Number.isFinite(currentTime) || !Number.isFinite(duration) || duration <= 0) return 0;
+    return Math.max(0, Math.min(100, Math.round((currentTime / duration) * 100)));
+  }
+
+  const api = { bucketFor, coveragePercent, playbackPercent };
   root.ReelCoverage = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);
