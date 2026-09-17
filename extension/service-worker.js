@@ -61,8 +61,36 @@ async function syncPending(watched, connection) {
   return next;
 }
 
+async function syncProgressSessions(sessions, connection) {
+  if (!connection?.token) return sessions;
+
+  let changed = false;
+  const next = { ...sessions };
+  for (const [key, original] of Object.entries(next)) {
+    if (!ReelSync.isUsefulTitle(original.title, original.provider)) continue;
+    const item = original.eventId ? original : { ...original, eventId: crypto.randomUUID() };
+    if (item !== original) {
+      next[key] = item;
+      changed = true;
+    }
+
+    try {
+      await request("/api/extension/progress", ReelSync.toProgressPayload(item), connection.token);
+    } catch (error) {
+      if (error.status === 401) {
+        await chrome.storage.local.remove(CONNECTION_KEY);
+        connection.token = null;
+        break;
+      }
+    }
+  }
+
+  if (changed) await chrome.storage.local.set({ [SESSIONS_KEY]: next });
+  return next;
+}
+
 async function claimExtension(method, code, deviceName) {
-  const stored = await chrome.storage.local.get([INSTALL_ID_KEY, WATCHED_KEY]);
+  const stored = await chrome.storage.local.get([INSTALL_ID_KEY, WATCHED_KEY, SESSIONS_KEY]);
   const installId = stored[INSTALL_ID_KEY] ?? crypto.randomUUID();
   const result = await request("/api/extension/pair", {
     method,
@@ -77,6 +105,7 @@ async function claimExtension(method, code, deviceName) {
   };
   await chrome.storage.local.set({ [INSTALL_ID_KEY]: installId, [CONNECTION_KEY]: connection });
   await syncPending(stored[WATCHED_KEY] ?? {}, connection);
+  await syncProgressSessions(stored[SESSIONS_KEY] ?? {}, connection);
   return connection;
 }
 
@@ -148,9 +177,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     chrome.storage.local.get([WATCHED_KEY, SESSIONS_KEY, CONNECTION_KEY]).then(async (data) => {
       const connection = data[CONNECTION_KEY] ?? null;
       const synced = await syncPending(data[WATCHED_KEY] ?? {}, connection);
+      const sessions = await syncProgressSessions(data[SESSIONS_KEY] ?? {}, connection);
       const watched = Object.values(synced)
         .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
-      const inProgress = ReelSync.listInProgress(data[SESSIONS_KEY]);
+      const inProgress = ReelSync.listInProgress(sessions);
       sendResponse({
         watched,
         inProgress,
@@ -191,14 +221,23 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const watched = data[WATCHED_KEY] ?? {};
     const sessions = data[SESSIONS_KEY] ?? {};
     const previous = sessions[key] ?? { buckets: [] };
+    const eventId = previous.eventId ?? crypto.randomUUID();
     const buckets = [...new Set([...previous.buckets, ...heartbeat.buckets])];
     const coverage = ReelCoverage.coveragePercent(buckets, heartbeat.duration);
     const progress = ReelCoverage.playbackPercent(heartbeat.currentTime, heartbeat.duration);
     const previouslyWatched = Boolean(watched[key]);
     const justCompleted = coverage >= 80 && !previouslyWatched;
 
+    if (previouslyWatched) {
+      delete sessions[key];
+      await chrome.storage.local.set({ [SESSIONS_KEY]: sessions });
+      sendResponse({ coverage, previouslyWatched: true, justCompleted: false });
+      return;
+    }
+
     sessions[key] = {
       ...heartbeat,
+      eventId,
       buckets,
       coverage,
       progress,
@@ -207,7 +246,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
     if (justCompleted) {
       watched[key] = {
-        eventId: crypto.randomUUID(),
+        eventId,
         provider: heartbeat.provider,
         title: heartbeat.title,
         url: heartbeat.url,
@@ -219,7 +258,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     await chrome.storage.local.set({ [WATCHED_KEY]: watched, [SESSIONS_KEY]: sessions });
-    if (justCompleted) await syncPending(watched, data[CONNECTION_KEY]);
+    if (justCompleted) {
+      await syncPending(watched, data[CONNECTION_KEY]);
+    } else if (data[CONNECTION_KEY]?.token) {
+      try {
+        await request("/api/extension/progress", ReelSync.toProgressPayload(sessions[key]), data[CONNECTION_KEY].token);
+      } catch (error) {
+        if (error.status === 401) await chrome.storage.local.remove(CONNECTION_KEY);
+      }
+    }
     sendResponse({ coverage, previouslyWatched, justCompleted });
   });
 

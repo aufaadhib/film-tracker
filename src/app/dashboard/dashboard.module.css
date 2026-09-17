@@ -13,6 +13,28 @@
 .statCard p { margin: 0 0 17px; color: var(--muted); font-size: .63rem; }
 .statCard strong { display: block; overflow: hidden; font-family: var(--font-display), sans-serif; font-size: clamp(1.75rem, 5vw, 2.65rem); line-height: 1; letter-spacing: -.055em; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .statCard span { display: block; margin-top: 6px; color: var(--muted); font-family: var(--font-mono), monospace; font-size: .46rem; }
+.continuePanel { min-width: 0; margin-top: 14px; padding: 20px; border: 1px solid var(--line); border-radius: 17px; background: var(--surface); }
+.continuePanel .panelHead { align-items: end; margin-bottom: 16px; }
+.continuePanel .panelHead h2 { margin: 0; font-family: var(--font-display), sans-serif; font-size: 1.6rem; letter-spacing: -.045em; }
+.continuePanel .panelHead > span { color: var(--muted); font-family: var(--font-mono), monospace; font-size: .48rem; white-space: nowrap; }
+.continueGrid { display: grid; gap: 10px; }
+.continueCard { min-width: 0; padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-soft); }
+.continueMeta, .continueTime, .continueCard footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.continueMeta span { color: var(--reel-blue); font-family: var(--font-mono), monospace; font-size: .5rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.continueMeta strong { font-family: var(--font-mono), monospace; font-size: .72rem; }
+.continueCard h3 { min-height: 2.5em; margin: 20px 0 14px; overflow: hidden; font-family: var(--font-display), sans-serif; font-size: 1.05rem; line-height: 1.2; letter-spacing: -.025em; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.continueCard progress { display: block; width: 100%; height: 8px; border: 0; border-radius: 99px; overflow: hidden; background: var(--line); }
+.continueCard progress::-webkit-progress-bar { border-radius: 99px; background: var(--line); }
+.continueCard progress::-webkit-progress-value { border-radius: 99px; background: var(--reel-blue); }
+.continueTime { margin-top: 7px; color: var(--muted); font-family: var(--font-mono), monospace; font-size: .48rem; }
+.continueCard footer { align-items: end; margin-top: 20px; }
+.continueCard small { max-width: 52%; color: var(--muted); font-size: .5rem; line-height: 1.35; }
+.continueCard a { color: var(--reel-blue); font-size: .58rem; font-weight: 800; text-align: right; }
+.continueCard a:hover { color: var(--ink); }
+.continueEmpty { display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--reel-blue); background: var(--surface-soft); }
+.continueEmpty div { min-width: 0; }
+.continueEmpty strong { color: var(--ink); font-size: .72rem; }
+.continueEmpty p { margin: 4px 0 0; color: var(--muted); font-size: .64rem; line-height: 1.45; }
 .grid { display: grid; gap: 14px; margin-top: 14px; }
 .panel { min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 17px; background: var(--surface); }
 .panelHead { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 6px; }
@@ -88,8 +110,9 @@
 .loadingPage > section i { min-height: 72px; }
 @keyframes loadingPulse { 50% { opacity: .58; } }
 
-@media (min-width: 640px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } .filters { grid-template-columns: minmax(180px, 1fr) 140px 150px auto; } .featureGrid { grid-template-columns: repeat(2, 1fr); } .setting { grid-template-columns: minmax(0, 1fr) auto; align-items: center; } .loadingPage > div { grid-template-columns: repeat(4, 1fr); } }
-@media (min-width: 1000px) { .grid { grid-template-columns: minmax(0, 1.45fr) minmax(290px, .65fr); } .featureGrid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 640px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } .continueGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .filters { grid-template-columns: minmax(180px, 1fr) 140px 150px auto; } .featureGrid { grid-template-columns: repeat(2, 1fr); } .setting { grid-template-columns: minmax(0, 1fr) auto; align-items: center; } .loadingPage > div { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 1000px) { .grid { grid-template-columns: minmax(0, 1.45fr) minmax(290px, .65fr); } .continueGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .featureGrid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 620px) { .pageHeader { align-items: start; flex-direction: column; } }
 @media (max-width: 520px) { .deviceList li { align-items: stretch; flex-direction: column; } .deviceList button { width: 100%; min-height: 38px; } .pairingCard form, .pairingCard button { width: 100%; } }
+@media (max-width: 520px) { .continuePanel .panelHead { align-items: start; flex-direction: column; } .continueCard footer { align-items: start; flex-direction: column; } .continueCard small { max-width: none; } .continueCard a { text-align: left; } }
 @media (prefers-reduced-motion: reduce) { .loadingPage { animation: none; } }

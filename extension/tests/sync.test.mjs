@@ -35,4 +35,26 @@ assert.deepEqual(sync.toSyncPayload({
   watchedAt: "2026-09-17T12:00:00.000Z",
 });
 
+assert.deepEqual(sync.toProgressPayload({
+  eventId: "event-id",
+  provider: "netflix",
+  title: "Interstellar",
+  url: "https://www.netflix.com/watch/1",
+  duration: 2400,
+  currentTime: 1200,
+  progress: 50,
+  coverage: 12,
+  updatedAt: "2026-09-17T12:00:00.000Z",
+}), {
+  eventId: "event-id",
+  provider: "netflix",
+  title: "Interstellar",
+  url: "https://www.netflix.com/watch/1",
+  duration: 2400,
+  currentTime: 1200,
+  progress: 50,
+  coverage: 12,
+  observedAt: "2026-09-17T12:00:00.000Z",
+});
+
 console.log("sync tests passed");

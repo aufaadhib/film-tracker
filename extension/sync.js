@@ -45,7 +45,21 @@
     };
   }
 
-  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, listInProgress, toSyncPayload };
+  function toProgressPayload(item) {
+    return {
+      eventId: item.eventId,
+      provider: item.provider,
+      title: item.title,
+      url: item.url ?? null,
+      duration: item.duration,
+      currentTime: item.currentTime,
+      progress: item.progress,
+      coverage: item.coverage,
+      observedAt: item.updatedAt,
+    };
+  }
+
+  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, listInProgress, toSyncPayload, toProgressPayload };
   root.ReelSync = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);
