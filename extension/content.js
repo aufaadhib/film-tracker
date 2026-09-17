@@ -25,6 +25,8 @@ let activeTitle = "";
 let watchedBuckets = new Set();
 let lastHeartbeat = 0;
 let warningShownFor = "";
+let extensionAvailable = true;
+let scanInterval;
 
 function cleanTitle(value) {
   const providerName = PROVIDER_LABELS[provider] ?? "";
@@ -94,18 +96,25 @@ async function sendHeartbeat(force = false) {
   if (!force && now - lastHeartbeat < 15000) return;
   lastHeartbeat = now;
 
-  const response = await chrome.runtime.sendMessage({
-    type: "HEARTBEAT",
-    payload: {
-      provider,
-      title: activeTitle,
-      url: location.href,
-      duration: Math.round(activeVideo.duration),
-      currentTime: Math.round(activeVideo.currentTime),
-      buckets: [...watchedBuckets],
-      observedAt: new Date().toISOString(),
-    },
-  }).catch(() => null);
+  let response;
+  try {
+    response = await chrome.runtime.sendMessage({
+      type: "HEARTBEAT",
+      payload: {
+        provider,
+        title: activeTitle,
+        url: location.href,
+        duration: Math.round(activeVideo.duration),
+        currentTime: Math.round(activeVideo.currentTime),
+        buckets: [...watchedBuckets],
+        observedAt: new Date().toISOString(),
+      },
+    });
+  } catch {
+    extensionAvailable = false;
+    window.clearInterval(scanInterval);
+    return;
+  }
 
   if (!response) return;
   if (response.previouslyWatched && warningShownFor !== activeTitle) {
@@ -139,6 +148,7 @@ function attachVideo(video) {
 }
 
 function scan() {
+  if (!extensionAvailable) return;
   const title = detectTitle();
   if (title && title !== activeTitle) {
     activeTitle = title;
@@ -153,5 +163,5 @@ function scan() {
   if (video && title) void sendHeartbeat();
 }
 
+scanInterval = window.setInterval(scan, 3000);
 scan();
-window.setInterval(scan, 3000);
