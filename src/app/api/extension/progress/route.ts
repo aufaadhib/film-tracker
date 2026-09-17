@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { isUsefulDetectedTitle } from "@/lib/extension-title";
 import { createClient } from "@/lib/supabase/server";
 
 const progressSchema = z.object({
@@ -10,7 +11,7 @@ const progressSchema = z.object({
   duration: z.number().int().positive().max(24 * 60 * 60),
   currentTime: z.number().int().nonnegative().max(24 * 60 * 60),
   progress: z.number().min(0).max(100),
-  coverage: z.number().min(0).max(100),
+  coverage: z.number().min(0).max(100).optional(),
   observedAt: z.string().datetime({ offset: true }),
 }).strict();
 
@@ -43,7 +44,9 @@ export async function POST(request: Request) {
   }
 
   const body = progressSchema.safeParse(await request.json().catch(() => null));
-  if (!body.success || body.data.currentTime > body.data.duration + 30) {
+  if (!body.success
+    || !isUsefulDetectedTitle(body.data.title, body.data.provider)
+    || body.data.currentTime > body.data.duration + 30) {
     return Response.json({ error: "Data progres tidak valid." }, {
       status: 400,
       headers: { "Cache-Control": "no-store" },
@@ -76,7 +79,7 @@ export async function POST(request: Request) {
     p_duration_seconds: body.data.duration,
     p_current_time_seconds: Math.min(body.data.currentTime, body.data.duration),
     p_progress_percent: body.data.progress,
-    p_coverage_percent: body.data.coverage,
+    p_coverage_percent: body.data.progress,
     p_observed_at: body.data.observedAt,
   });
 

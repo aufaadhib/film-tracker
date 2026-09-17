@@ -11,13 +11,14 @@
 
   function isUsefulTitle(title, provider) {
     const normalized = String(title ?? "").trim().toLocaleLowerCase();
+    const withoutNotificationCount = normalized.replace(/^\(\d+\)\s*/, "");
     const genericTitles = {
       netflix: ["netflix"],
       disney: ["disney+", "disney plus"],
       prime_video: ["prime video", "amazon prime video"],
       max: ["max", "hbo max"],
     };
-    return Boolean(normalized) && !(genericTitles[provider] ?? []).includes(normalized);
+    return Boolean(normalized) && !(genericTitles[provider] ?? []).includes(withoutNotificationCount);
   }
 
   function listInProgress(sessions) {
@@ -27,7 +28,6 @@
         title: item.title.trim(),
         provider: item.provider,
         progress: Math.max(0, Math.min(100, Math.round(Number(item.progress) || 0))),
-        coverage: Math.max(0, Math.min(100, Math.round(Number(item.coverage) || 0))),
         updatedAt: item.updatedAt ?? "",
       }))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -40,7 +40,7 @@
       title: item.title,
       url: item.url ?? null,
       duration: Number.isInteger(item.duration) && item.duration > 0 ? item.duration : null,
-      coverage: item.coverage,
+      progress: item.progress ?? item.coverage,
       watchedAt: item.watchedAt,
     };
   }
@@ -54,7 +54,6 @@
       duration: item.duration,
       currentTime: item.currentTime,
       progress: item.progress,
-      coverage: item.coverage,
       observedAt: item.updatedAt,
     };
   }

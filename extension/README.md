@@ -12,7 +12,7 @@ Manifest V3 extension untuk Chrome dan Edge. Sesi tetap disimpan lokal dan tonto
 6. Isi `REELMARK_EXTENSION_IDS` di `.env.local` dengan ID tersebut, lalu restart server Next.js dan reload extension.
 7. Buka popup extension dan pilih **Masuk dengan Google**. Pairing manual pada dashboard hanya diperlukan sebagai pemulihan.
 
-Extension menghitung bucket waktu unik 10 detik. Mencari atau mengulang bagian yang sama tidak menambah coverage dua kali. Pada 80%, judul ditandai selesai dan disimpan di `chrome.storage.local`. Item yang belum berhasil terkirim tetap menjadi antrean dan dicoba lagi ketika popup dibuka.
+Extension membaca posisi pemutaran video. Saat posisi mencapai 80%, judul ditandai selesai dan disimpan di `chrome.storage.local`. Item yang belum berhasil terkirim tetap menjadi antrean dan dicoba lagi ketika popup dibuka.
 
 Jalankan pemeriksaan algoritme dengan:
 

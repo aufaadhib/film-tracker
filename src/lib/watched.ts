@@ -3,6 +3,7 @@ import "server-only";
 import type { User } from "@supabase/supabase-js";
 import { cache } from "react";
 import type { WatchedTitle } from "@/lib/catalog";
+import { isUsefulDetectedTitle } from "@/lib/extension-title";
 import { createClient } from "@/lib/supabase/server";
 
 type RawState = {
@@ -25,7 +26,6 @@ type RawProgress = {
   duration_seconds: number;
   current_time_seconds: number;
   progress_percent: number;
-  coverage_percent: number;
   last_seen_at: string;
 };
 
@@ -37,7 +37,6 @@ export type InProgressWatch = {
   duration: number;
   currentTime: number;
   progress: number;
-  coverage: number;
   lastSeenAt: string;
 };
 
@@ -91,10 +90,10 @@ export const getViewer = cache(async (): Promise<{
 
   const progressPromise = supabase
     .from("extension_watch_progress")
-    .select("id,provider,provider_item_id,detected_title,duration_seconds,current_time_seconds,progress_percent,coverage_percent,last_seen_at")
+    .select("id,provider,provider_item_id,detected_title,duration_seconds,current_time_seconds,progress_percent,last_seen_at")
     .eq("user_id", user.id)
     .order("last_seen_at", { ascending: false })
-    .limit(8);
+    .limit(24);
 
   const [rows, progressResult] = await Promise.all([watchedPromise, progressPromise]);
   if (progressResult.error) {
@@ -120,16 +119,18 @@ export const getViewer = cache(async (): Promise<{
       watchedAt: item.last_watched_at,
       watchCount: item.watch_count,
     })),
-    inProgress: progressRows.map((item) => ({
-      id: item.id,
-      provider: item.provider,
-      url: item.provider_item_id,
-      title: item.detected_title,
-      duration: item.duration_seconds,
-      currentTime: item.current_time_seconds,
-      progress: Number(item.progress_percent),
-      coverage: Number(item.coverage_percent),
-      lastSeenAt: item.last_seen_at,
-    })),
+    inProgress: progressRows
+      .filter((item) => isUsefulDetectedTitle(item.detected_title, item.provider))
+      .slice(0, 8)
+      .map((item) => ({
+        id: item.id,
+        provider: item.provider,
+        url: item.provider_item_id,
+        title: item.detected_title,
+        duration: item.duration_seconds,
+        currentTime: item.current_time_seconds,
+        progress: Number(item.progress_percent),
+        lastSeenAt: item.last_seen_at,
+      })),
   };
 });

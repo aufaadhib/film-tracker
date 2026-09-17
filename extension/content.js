@@ -13,7 +13,7 @@ const PROVIDER_LABELS = {
 };
 
 const TITLE_SELECTORS = {
-  netflix: ['[data-uia="video-title"]', '[data-uia="video-title"] h4'],
+  netflix: ['[data-uia="video-title"] h4', '[data-uia="video-title"]'],
   disney: ['[data-testid="player-title"]', '[class*="title"] h1'],
   prime_video: ['[data-testid="detail-title"]', '.atvwebplayersdk-title-text'],
   max: ['[data-testid="player-title"]', '[class*="Title"] h1'],
@@ -22,7 +22,6 @@ const TITLE_SELECTORS = {
 const provider = PROVIDERS[location.hostname];
 let activeVideo = null;
 let activeTitle = "";
-let watchedBuckets = new Set();
 let lastHeartbeat = 0;
 let warningShownFor = "";
 let extensionAvailable = true;
@@ -106,7 +105,6 @@ async function sendHeartbeat(force = false) {
         url: location.href,
         duration: Math.round(activeVideo.duration),
         currentTime: Math.round(activeVideo.currentTime),
-        buckets: [...watchedBuckets],
         observedAt: new Date().toISOString(),
       },
     });
@@ -122,13 +120,12 @@ async function sendHeartbeat(force = false) {
     showNotice(activeTitle, "Judul ini sudah pernah kamu tonton.");
   } else if (response.justCompleted) {
     warningShownFor = activeTitle;
-    showNotice(activeTitle, "80% bagian unik sudah terputar. Ditandai sebagai sudah ditonton.");
+    showNotice(activeTitle, "Posisi video mencapai 80%. Ditandai sebagai sudah ditonton.");
   }
 }
 
 function onTimeUpdate() {
   if (!activeVideo || activeVideo.paused || activeVideo.seeking) return;
-  watchedBuckets.add(ReelCoverage.bucketFor(activeVideo.currentTime));
   void sendHeartbeat();
 }
 
@@ -141,7 +138,6 @@ function attachVideo(video) {
   activeVideo?.removeEventListener("timeupdate", onTimeUpdate);
   activeVideo?.removeEventListener("pause", onPause);
   activeVideo = video;
-  watchedBuckets = new Set();
   lastHeartbeat = 0;
   video.addEventListener("timeupdate", onTimeUpdate, { passive: true });
   video.addEventListener("pause", onPause, { passive: true });
@@ -152,7 +148,6 @@ function scan() {
   const title = detectTitle();
   if (title && title !== activeTitle) {
     activeTitle = title;
-    watchedBuckets = new Set();
     lastHeartbeat = 0;
     warningShownFor = "";
   }

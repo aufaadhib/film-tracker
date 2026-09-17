@@ -63,7 +63,7 @@ export default async function ExtensionPage() {
       {databaseReady ? <ExtensionPairing /> : null}
       <section className={styles.featureGrid}>
         <article className={styles.featureCard}><ExtensionIcon size={24} /><h2>4 platform</h2><p>Netflix, Disney+, Prime Video, dan Max pada Chrome atau Edge.</p></article>
-        <article className={styles.featureCard}><FilmIcon size={24} /><h2>Ambang 80%</h2><p>Hanya bagian waktu unik yang dihitung agar seek dan replay tidak menggandakan progres.</p></article>
+        <article className={styles.featureCard}><FilmIcon size={24} /><h2>Ambang 80%</h2><p>Judul ditandai selesai saat posisi pemutaran video mencapai 80%.</p></article>
         <article className={styles.featureCard}><SettingsIcon size={24} /><h2>Antrean lokal</h2><p>Riwayat tetap berada di browser sampai backend mengonfirmasi sinkronisasi.</p></article>
         <article className={styles.featureCard}><CheckIcon size={24} /><h2>Kontrol pengguna</h2><p>Extension hanya berjalan pada host platform streaming yang tercantum di manifest.</p></article>
       </section>

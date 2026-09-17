@@ -67,7 +67,11 @@ async function syncProgressSessions(sessions, connection) {
   let changed = false;
   const next = { ...sessions };
   for (const [key, original] of Object.entries(next)) {
-    if (!ReelSync.isUsefulTitle(original.title, original.provider)) continue;
+    if (!ReelSync.isUsefulTitle(original.title, original.provider)) {
+      delete next[key];
+      changed = true;
+      continue;
+    }
     const item = original.eventId ? original : { ...original, eventId: crypto.randomUUID() };
     if (item !== original) {
       next[key] = item;
@@ -179,6 +183,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const synced = await syncPending(data[WATCHED_KEY] ?? {}, connection);
       const sessions = await syncProgressSessions(data[SESSIONS_KEY] ?? {}, connection);
       const watched = Object.values(synced)
+        .filter((item) => ReelSync.isUsefulTitle(item.title, item.provider))
         .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
       const inProgress = ReelSync.listInProgress(sessions);
       sendResponse({
@@ -220,26 +225,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const key = identity(heartbeat.provider, heartbeat.title);
     const watched = data[WATCHED_KEY] ?? {};
     const sessions = data[SESSIONS_KEY] ?? {};
-    const previous = sessions[key] ?? { buckets: [] };
+    const previous = sessions[key] ?? {};
     const eventId = previous.eventId ?? crypto.randomUUID();
-    const buckets = [...new Set([...previous.buckets, ...heartbeat.buckets])];
-    const coverage = ReelCoverage.coveragePercent(buckets, heartbeat.duration);
     const progress = ReelCoverage.playbackPercent(heartbeat.currentTime, heartbeat.duration);
     const previouslyWatched = Boolean(watched[key]);
-    const justCompleted = coverage >= 80 && !previouslyWatched;
+    const justCompleted = ReelCoverage.isWatchedPosition(progress) && !previouslyWatched;
 
     if (previouslyWatched) {
       delete sessions[key];
       await chrome.storage.local.set({ [SESSIONS_KEY]: sessions });
-      sendResponse({ coverage, previouslyWatched: true, justCompleted: false });
+      sendResponse({ progress, previouslyWatched: true, justCompleted: false });
       return;
     }
 
     sessions[key] = {
       ...heartbeat,
       eventId,
-      buckets,
-      coverage,
       progress,
       updatedAt: heartbeat.observedAt,
     };
@@ -251,7 +252,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         title: heartbeat.title,
         url: heartbeat.url,
         duration: heartbeat.duration,
-        coverage,
+        progress,
         watchedAt: heartbeat.observedAt,
       };
       delete sessions[key];
@@ -267,7 +268,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         if (error.status === 401) await chrome.storage.local.remove(CONNECTION_KEY);
       }
     }
-    sendResponse({ coverage, previouslyWatched, justCompleted });
+    sendResponse({ progress, previouslyWatched, justCompleted });
   });
 
   return true;

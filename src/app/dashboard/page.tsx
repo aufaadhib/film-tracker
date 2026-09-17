@@ -55,7 +55,7 @@ export default async function DashboardPage() {
                 <div className={styles.continueMeta}><span>{providerLabels[item.provider]}</span><strong>{Math.round(item.progress)}%</strong></div>
                 <h3>{item.title}</h3>
                 <progress max="100" value={item.progress} aria-label={`Posisi tontonan ${item.title}: ${Math.round(item.progress)}%`} />
-                <div className={styles.continueTime}><span>{duration(item.currentTime)} / {duration(item.duration)}</span><span>{Math.round(item.coverage)}% unik</span></div>
+                <div className={styles.continueTime}><span>{duration(item.currentTime)} / {duration(item.duration)}</span><span>Posisi pemutaran</span></div>
                 <footer><small>Terakhir {lastSeenFormatter.format(new Date(item.lastSeenAt))}</small>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">Buka di {providerLabels[item.provider]} →</a> : null}</footer>
               </article>
             ))}
@@ -70,7 +70,7 @@ export default async function DashboardPage() {
           {watched.length ? watched.slice(0, 6).map((item) => <MediaRow key={item.id} item={item} />) : <div className={styles.empty}><FilmIcon size={28} /><h2>Arsipmu masih kosong</h2><p>Cari film atau serial lalu tandai sebagai sudah ditonton untuk membuat catatan pertama.</p><Link href="/dashboard/discover">Cari judul →</Link></div>}
         </section>
         <aside className={styles.darkPanel}>
-          <span className={styles.live}><i /> EXTENSION BETA</span><h2>{latestProgress ? "Playhead tersambung." : "Hubungkan detector."}</h2><p>{latestProgress ? "Posisi tontonan dan bagian unik terpantau disinkronkan dari browser tanpa menunggu film selesai." : "Hubungkan extension agar progres dan tontonan selesai masuk ke akunmu."}</p><Link href="/dashboard/extension">Atur extension →</Link>
+          <span className={styles.live}><i /> EXTENSION BETA</span><h2>{latestProgress ? "Playhead tersambung." : "Hubungkan detector."}</h2><p>{latestProgress ? "Posisi tontonan disinkronkan dari browser tanpa menunggu film selesai." : "Hubungkan extension agar progres dan tontonan selesai masuk ke akunmu."}</p><Link href="/dashboard/extension">Atur extension →</Link>
           <div className={styles.nowRail}><span><ExtensionIcon size={20} /></span><div><span>{latestProgress ? providerLabels[latestProgress.provider].toLocaleUpperCase("id-ID") : "STATUS PERANGKAT"}</span><strong>{latestProgress?.title ?? "Periksa browser tertaut"}</strong></div><strong>{latestProgress ? `${Math.round(latestProgress.progress)}%` : "PAIRING"}</strong></div>
         </aside>
       </div>

@@ -44,7 +44,7 @@ function renderSummary(summary) {
     const progress = document.createElement("progress");
     title.textContent = item.title;
     percent.textContent = `${item.progress}%`;
-    provider.textContent = `${providerLabels[item.provider] ?? item.provider} · ${item.coverage}% bagian unik terpantau`;
+    provider.textContent = `${providerLabels[item.provider] ?? item.provider} · posisi pemutaran`;
     progress.max = 100;
     progress.value = item.progress;
     progress.setAttribute("aria-label", `Posisi tontonan ${item.title}: ${item.progress}%`);

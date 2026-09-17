@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { CatalogResult } from "@/lib/catalog";
+import { isUsefulDetectedTitle } from "@/lib/extension-title";
 import { createClient } from "@/lib/supabase/server";
 import { searchCatalog } from "@/lib/tmdb";
 
@@ -10,9 +11,10 @@ const syncSchema = z.object({
   title: z.string().trim().min(1).max(300),
   url: z.string().url().max(2048).nullable().optional(),
   duration: z.number().int().positive().max(24 * 60 * 60).nullable().optional(),
-  coverage: z.number().min(80).max(100),
+  progress: z.number().min(80).max(100).optional(),
+  coverage: z.number().min(80).max(100).optional(),
   watchedAt: z.string().datetime({ offset: true }),
-}).strict();
+}).strict().refine((data) => data.progress !== undefined || data.coverage !== undefined);
 
 const providerHosts = {
   netflix: "www.netflix.com",
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
   }
 
   const body = syncSchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) {
+  if (!body.success || !isUsefulDetectedTitle(body.data.title, body.data.provider)) {
     return Response.json({ error: "Data tontonan tidak valid." }, { status: 400 });
   }
 
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
     p_provider_item_id: safeProviderUrl(body.data.provider, body.data.url),
     p_detected_title: body.data.title,
     p_duration_seconds: body.data.duration ?? null,
-    p_coverage_percent: body.data.coverage,
+    p_coverage_percent: body.data.progress ?? body.data.coverage,
     p_watched_at: body.data.watchedAt,
     p_tmdb_id: match?.tmdbId ?? null,
     p_media_type: match?.mediaType ?? null,
