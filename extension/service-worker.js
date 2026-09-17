@@ -150,9 +150,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const synced = await syncPending(data[WATCHED_KEY] ?? {}, connection);
       const watched = Object.values(synced)
         .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
+      const inProgress = ReelSync.listInProgress(data[SESSIONS_KEY]);
       sendResponse({
         watched,
-        activeCount: Object.keys(data[SESSIONS_KEY] ?? {}).length,
+        inProgress,
+        activeCount: inProgress.length,
         connected: Boolean(connection?.token),
         pairedAt: connection?.pairedAt ?? null,
       });

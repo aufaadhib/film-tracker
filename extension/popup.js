@@ -17,6 +17,7 @@ const deviceName = `Chrome / Edge · ${navigator.platform || "Browser"}`;
 
 function renderSummary(summary) {
   const watched = summary?.watched ?? [];
+  const inProgress = summary?.inProgress ?? [];
   const connected = Boolean(summary?.connected);
   document.getElementById("watched-count").textContent = String(watched.length).padStart(2, "0");
   document.getElementById("active-count").textContent = String(summary?.activeCount ?? 0).padStart(2, "0");
@@ -32,9 +33,31 @@ function renderSummary(summary) {
     ? "Terhubung ke akun Reelmark · antrean offline aktif."
     : "Data disimpan lokal sampai akun dihubungkan.";
 
-  if (!watched.length) return;
-  const list = document.getElementById("recent");
-  list.replaceChildren(...watched.slice(0, 4).map((item) => {
+  const progressList = document.getElementById("in-progress");
+  progressList.replaceChildren(...(inProgress.length ? inProgress.slice(0, 4).map((item) => {
+    const row = document.createElement("li");
+    row.className = "progress-item";
+    const heading = document.createElement("div");
+    const title = document.createElement("strong");
+    const percent = document.createElement("span");
+    const provider = document.createElement("small");
+    const progress = document.createElement("progress");
+    title.textContent = item.title;
+    percent.textContent = `${item.coverage}%`;
+    provider.textContent = providerLabels[item.provider] ?? item.provider;
+    progress.max = 100;
+    progress.value = item.coverage;
+    progress.setAttribute("aria-label", `Progres ${item.title}: ${item.coverage}%`);
+    heading.append(title, percent);
+    row.append(heading, progress, provider);
+    return row;
+  }) : [Object.assign(document.createElement("li"), {
+    className: "empty",
+    textContent: "Belum ada tontonan dalam progres.",
+  })]));
+
+  const recent = document.getElementById("recent");
+  recent.replaceChildren(...(watched.length ? watched.slice(0, 4).map((item) => {
     const row = document.createElement("li");
     const title = document.createElement("strong");
     const provider = document.createElement("span");
@@ -42,7 +65,10 @@ function renderSummary(summary) {
     provider.textContent = providerLabels[item.provider] ?? item.provider;
     row.append(title, provider);
     return row;
-  }));
+  }) : [Object.assign(document.createElement("li"), {
+    className: "empty",
+    textContent: "Belum ada tontonan yang selesai.",
+  })]));
 }
 
 function loadSummary() {
