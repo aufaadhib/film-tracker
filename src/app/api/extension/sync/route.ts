@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { isUsefulDetectedTitle } from "@/lib/extension-title";
+import { isTrackableProviderUrl, isUsefulDetectedTitle, normalizeProviderUrl } from "@/lib/extension-title";
 import { createClient } from "@/lib/supabase/server";
 import { resolveCatalogMatch } from "@/lib/tmdb";
 
@@ -17,22 +17,8 @@ const syncSchema = z.object({
   watchedAt: z.string().datetime({ offset: true }),
 }).strict().refine((data) => data.progress !== undefined || data.coverage !== undefined);
 
-const providerHosts = {
-  netflix: "www.netflix.com",
-  disney: "www.disneyplus.com",
-  prime_video: "www.primevideo.com",
-  max: "play.max.com",
-} as const;
-
 function hash(value: string) {
   return createHash("sha256").update(value).digest("hex");
-}
-
-function safeProviderUrl(provider: keyof typeof providerHosts, value?: string | null) {
-  if (!value) return null;
-  const url = new URL(value);
-  if (url.hostname !== providerHosts[provider]) return null;
-  return `${url.origin}${url.pathname}`.slice(0, 1000);
 }
 
 export async function POST(request: Request) {
@@ -45,6 +31,10 @@ export async function POST(request: Request) {
   const body = syncSchema.safeParse(await request.json().catch(() => null));
   if (!body.success || !isUsefulDetectedTitle(body.data.title, body.data.provider)) {
     return Response.json({ error: "Data tontonan tidak valid." }, { status: 400 });
+  }
+  const providerItemId = normalizeProviderUrl(body.data.provider, body.data.url)?.slice(0, 1000) ?? null;
+  if (!isTrackableProviderUrl(body.data.provider, providerItemId)) {
+    return Response.json({ error: "Halaman ini bukan pemutar yang didukung." }, { status: 400 });
   }
 
   const watchedAt = Date.parse(body.data.watchedAt);
@@ -74,7 +64,7 @@ export async function POST(request: Request) {
     p_token_hash: hash(token),
     p_event_id: body.data.eventId,
     p_provider: body.data.provider,
-    p_provider_item_id: safeProviderUrl(body.data.provider, body.data.url),
+    p_provider_item_id: providerItemId,
     p_detected_title: body.data.title,
     p_duration_seconds: body.data.duration ?? null,
     p_coverage_percent: body.data.progress ?? body.data.coverage,

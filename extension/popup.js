@@ -74,11 +74,16 @@ function renderSummary(summary) {
 
 function loadSummary() {
   chrome.runtime.sendMessage({ type: "GET_SUMMARY" }, (summary) => {
-    if (chrome.runtime.lastError) {
+    if (chrome.runtime.lastError || summary?.error) {
       pairMessage.textContent = "Service worker extension belum siap. Buka kembali popup.";
       return;
     }
     renderSummary(summary);
+
+    chrome.runtime.sendMessage({ type: "REFRESH_SUMMARY" }, (refreshed) => {
+      if (chrome.runtime.lastError || refreshed?.error) return;
+      renderSummary(refreshed);
+    });
   });
 }
 

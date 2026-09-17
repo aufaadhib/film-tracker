@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { formatDisplayTitle } from "@/lib/catalog";
-import { isUsefulDetectedTitle } from "@/lib/extension-title";
+import { isTrackableProviderUrl, isUsefulDetectedTitle, normalizeProviderUrl } from "@/lib/extension-title";
 import { createClient } from "@/lib/supabase/server";
 import { resolveCatalogMatch } from "@/lib/tmdb";
 
@@ -19,22 +19,8 @@ const progressSchema = z.object({
   observedAt: z.string().datetime({ offset: true }),
 }).strict();
 
-const providerHosts = {
-  netflix: "www.netflix.com",
-  disney: "www.disneyplus.com",
-  prime_video: "www.primevideo.com",
-  max: "play.max.com",
-} as const;
-
 function hash(value: string) {
   return createHash("sha256").update(value).digest("hex");
-}
-
-function safeProviderUrl(provider: keyof typeof providerHosts, value?: string | null) {
-  if (!value) return null;
-  const url = new URL(value);
-  if (url.hostname !== providerHosts[provider]) return null;
-  return `${url.origin}${url.pathname}`.slice(0, 1000);
 }
 
 function syncFailure(
@@ -106,7 +92,13 @@ export async function POST(request: Request) {
     });
   }
 
-  const providerItemId = safeProviderUrl(body.data.provider, body.data.url);
+  const providerItemId = normalizeProviderUrl(body.data.provider, body.data.url)?.slice(0, 1000) ?? null;
+  if (!isTrackableProviderUrl(body.data.provider, providerItemId)) {
+    return Response.json({ error: "Video preview tidak disimpan sebagai progres." }, {
+      status: 400,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
   const syncProgress = (title: string) => supabase.rpc("sync_extension_progress", {
     p_token_hash: hash(token),
     p_event_id: body.data.eventId,

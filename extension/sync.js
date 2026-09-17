@@ -46,6 +46,23 @@
     return Boolean(item?.dismissed && playing);
   }
 
+  function isTrackablePlayback(provider, value) {
+    if (provider !== "netflix" && provider !== "disney" && provider !== "prime_video") return true;
+    try {
+      const url = new URL(value);
+      if (provider === "netflix") {
+        return url.hostname === "www.netflix.com" && /^\/watch\/[^/]+/.test(url.pathname);
+      }
+      if (provider === "disney") {
+        return ["disneyplus.com", "www.disneyplus.com"].includes(url.hostname)
+          && /^\/(?:[a-z]{2}-[a-z]{2}\/)?play\/[^/]+/i.test(url.pathname);
+      }
+      return url.hostname === "www.primevideo.com" && /\/detail\/[^/]+/i.test(url.pathname);
+    } catch {
+      return false;
+    }
+  }
+
   function toSyncPayload(item) {
     return {
       eventId: item.eventId,
@@ -77,15 +94,20 @@
 
   function sessionIdentity(provider, title, value) {
     const providerHosts = {
-      netflix: "www.netflix.com",
-      disney: "www.disneyplus.com",
-      prime_video: "www.primevideo.com",
-      max: "play.max.com",
+      netflix: ["www.netflix.com"],
+      disney: ["disneyplus.com", "www.disneyplus.com"],
+      prime_video: ["www.primevideo.com"],
+      max: ["play.max.com"],
     };
     try {
       const url = new URL(value);
-      if (url.protocol === "https:" && url.hostname === providerHosts[provider] && url.pathname !== "/") {
-        return `${provider}:${url.origin}${url.pathname.replace(/\/$/, "")}`;
+      const hosts = providerHosts[provider] ?? [];
+      if (url.protocol === "https:" && hosts.includes(url.hostname) && url.pathname !== "/") {
+        if (provider === "prime_video") {
+          const contentId = url.pathname.match(/\/detail\/([^/]+)/i)?.[1];
+          if (contentId) return `${provider}:https://${hosts[0]}/detail/${contentId}`;
+        }
+        return `${provider}:https://${hosts[0]}${url.pathname.replace(/\/$/, "")}`;
       }
     } catch {}
     return `${provider}:${String(title).toLocaleLowerCase().replace(/\s+/g, " ").trim()}`;
@@ -106,7 +128,7 @@
     return normalized;
   }
 
-  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, formatTitle, listInProgress, shouldRestartDismissed, toSyncPayload, toProgressPayload, sessionIdentity, normalizeSessionKeys };
+  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, formatTitle, listInProgress, shouldRestartDismissed, isTrackablePlayback, toSyncPayload, toProgressPayload, sessionIdentity, normalizeSessionKeys };
   root.ReelSync = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);

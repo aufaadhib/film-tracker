@@ -74,7 +74,8 @@ async function syncProgressSessions(sessions, connection) {
   const next = { ...normalized };
   for (const [key, original] of Object.entries(next)) {
     if (original.dismissed) continue;
-    if (!ReelSync.isUsefulTitle(original.title, original.provider)) {
+    if (!ReelSync.isUsefulTitle(original.title, original.provider)
+      || !ReelSync.isTrackablePlayback(original.provider, original.url)) {
       delete next[key];
       changed = true;
       continue;
@@ -192,33 +193,51 @@ async function disconnectExtension() {
   await chrome.storage.local.remove(CONNECTION_KEY);
 }
 
+function buildSummary(watchedRecords, sessionRecords, connection) {
+  const watchedMap = ReelSync.normalizeSessionKeys(watchedRecords ?? {});
+  const sessions = ReelSync.normalizeSessionKeys(sessionRecords ?? {});
+  const watched = Object.values(watchedMap)
+    .filter((item) => ReelSync.isUsefulTitle(item.title, item.provider))
+    .map((item) => ({ ...item, title: ReelSync.formatTitle(item.displayTitle ?? item.title, item.originalTitle) }))
+    .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
+  const inProgress = ReelSync.listInProgress(sessions);
+  const activeKeys = new Set(Object.entries(sessions)
+    .filter(([, item]) => item && !item.dismissed && ReelSync.isUsefulTitle(item.title, item.provider))
+    .map(([key]) => key));
+  const recent = Object.entries(watchedMap)
+    .filter(([key, item]) => !activeKeys.has(key) && ReelSync.isUsefulTitle(item.title, item.provider))
+    .map(([, item]) => ({ ...item, title: ReelSync.formatTitle(item.displayTitle ?? item.title, item.originalTitle) }))
+    .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
+
+  return {
+    watched,
+    recent,
+    inProgress,
+    activeCount: inProgress.length,
+    connected: Boolean(connection?.token),
+    pairedAt: connection?.pairedAt ?? null,
+  };
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "GET_SUMMARY") {
+    chrome.storage.local.get([WATCHED_KEY, SESSIONS_KEY, CONNECTION_KEY])
+      .then((data) => sendResponse(buildSummary(
+        data[WATCHED_KEY] ?? {},
+        data[SESSIONS_KEY] ?? {},
+        data[CONNECTION_KEY] ?? null,
+      )))
+      .catch((error) => sendResponse({ error: error.message }));
+    return true;
+  }
+
+  if (message.type === "REFRESH_SUMMARY") {
     chrome.storage.local.get([WATCHED_KEY, SESSIONS_KEY, CONNECTION_KEY]).then(async (data) => {
       const connection = data[CONNECTION_KEY] ?? null;
-      const synced = await syncPending(data[WATCHED_KEY] ?? {}, connection);
+      const watched = await syncPending(data[WATCHED_KEY] ?? {}, connection);
       const sessions = await syncProgressSessions(data[SESSIONS_KEY] ?? {}, connection);
-      const watched = Object.values(synced)
-        .filter((item) => ReelSync.isUsefulTitle(item.title, item.provider))
-        .map((item) => ({ ...item, title: ReelSync.formatTitle(item.displayTitle ?? item.title, item.originalTitle) }))
-        .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
-      const inProgress = ReelSync.listInProgress(sessions);
-      const activeKeys = new Set(Object.entries(sessions)
-        .filter(([, item]) => item && !item.dismissed && ReelSync.isUsefulTitle(item.title, item.provider))
-        .map(([key]) => key));
-      const recent = Object.entries(synced)
-        .filter(([key, item]) => !activeKeys.has(key) && ReelSync.isUsefulTitle(item.title, item.provider))
-        .map(([, item]) => ({ ...item, title: ReelSync.formatTitle(item.displayTitle ?? item.title, item.originalTitle) }))
-        .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
-      sendResponse({
-        watched,
-        recent,
-        inProgress,
-        activeCount: inProgress.length,
-        connected: Boolean(connection?.token),
-        pairedAt: connection?.pairedAt ?? null,
-      });
-    });
+      sendResponse(buildSummary(watched, sessions, connection));
+    }).catch((error) => sendResponse({ error: error.message }));
     return true;
   }
 

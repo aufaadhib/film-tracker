@@ -3,7 +3,7 @@ import "server-only";
 import type { User } from "@supabase/supabase-js";
 import { cache } from "react";
 import type { WatchedTitle } from "@/lib/catalog";
-import { isUsefulDetectedTitle } from "@/lib/extension-title";
+import { isTrackableProviderUrl, isUsefulDetectedTitle, normalizeProviderUrl } from "@/lib/extension-title";
 import { createClient } from "@/lib/supabase/server";
 
 type RawState = {
@@ -143,6 +143,16 @@ export const getViewer = cache(async (): Promise<{
   }
 
   const progressRows = progressResult.data as unknown as RawProgress[];
+  const seenProgress = new Set<string>();
+  const visibleProgress = progressRows.filter((item) => {
+    if (!isUsefulDetectedTitle(item.detected_title, item.provider)
+      || !isTrackableProviderUrl(item.provider, item.provider_item_id)) return false;
+    const identity = normalizeProviderUrl(item.provider, item.provider_item_id)
+      ?? `${item.provider}:${item.detected_title.trim().toLocaleLowerCase("en-US")}`;
+    if (seenProgress.has(identity)) return false;
+    seenProgress.add(identity);
+    return true;
+  });
 
   return {
     user,
@@ -174,13 +184,12 @@ export const getViewer = cache(async (): Promise<{
           watchCount: 1,
         } satisfies WatchedTitle)),
     ].sort((a, b) => b.watchedAt.localeCompare(a.watchedAt)),
-    inProgress: progressRows
-      .filter((item) => isUsefulDetectedTitle(item.detected_title, item.provider))
+    inProgress: visibleProgress
       .slice(0, 8)
       .map((item) => ({
         id: item.id,
         provider: item.provider,
-        url: item.provider_item_id,
+        url: normalizeProviderUrl(item.provider, item.provider_item_id),
         title: item.detected_title,
         duration: item.duration_seconds,
         currentTime: item.current_time_seconds,

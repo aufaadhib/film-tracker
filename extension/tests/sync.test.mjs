@@ -20,12 +20,36 @@ assert.equal(sync.formatTitle("Interstellar", "Interstellar"), "Interstellar");
 assert.equal(sync.shouldRestartDismissed({ dismissed: true }, true), true);
 assert.equal(sync.shouldRestartDismissed({ dismissed: true }, false), false);
 assert.equal(sync.shouldRestartDismissed({ dismissed: false }, true), false);
+assert.equal(sync.isTrackablePlayback("netflix", "https://www.netflix.com/watch/81260288?trackId=1"), true);
+assert.equal(sync.isTrackablePlayback("netflix", "https://www.netflix.com/title/81260288"), false);
+assert.equal(sync.isTrackablePlayback("netflix", "https://www.netflix.com/browse"), false);
+assert.equal(sync.isTrackablePlayback("disney", "https://disneyplus.com/en-gb/play/c796dcaa-8447-4d43-a48a-aeeca5a77fed"), true);
+assert.equal(sync.isTrackablePlayback("disney", "https://www.disneyplus.com/play/c796dcaa-8447-4d43-a48a-aeeca5a77fed"), true);
+assert.equal(sync.isTrackablePlayback("disney", "https://disneyplus.com/en-gb/browse"), false);
+assert.equal(sync.isTrackablePlayback("prime_video", "https://www.primevideo.com/region/eu/detail/0FWBA4ZZ4OHAET1EXUKL4ESPS7/ref=player"), true);
+assert.equal(sync.isTrackablePlayback("prime_video", "https://www.primevideo.com/storefront"), false);
 assert.equal(
   sync.sessionIdentity("netflix", "Le roi : monarque éternel", "https://www.netflix.com/watch/81260288?trackId=1"),
   "netflix:https://www.netflix.com/watch/81260288",
 );
 assert.equal(sync.sessionIdentity("netflix", "더 킹", null), "netflix:더 킹");
 assert.equal(sync.sessionIdentity("netflix", "더 킹", "https://example.com/watch/81260288"), "netflix:더 킹");
+assert.equal(
+  sync.sessionIdentity("disney", "Perfect Crown", "https://www.disneyplus.com/en-gb/play/c796dcaa?x=1"),
+  "disney:https://disneyplus.com/en-gb/play/c796dcaa",
+);
+assert.equal(
+  sync.sessionIdentity("disney", "Perfect Crown", "https://disneyplus.com/en-gb/play/c796dcaa"),
+  "disney:https://disneyplus.com/en-gb/play/c796dcaa",
+);
+assert.equal(
+  sync.sessionIdentity("prime_video", "Neagley", "https://www.primevideo.com/region/eu/detail/0FWBA4ZZ4OHAET1EXUKL4ESPS7/ref=atv_plr_landingpage_play"),
+  "prime_video:https://www.primevideo.com/detail/0FWBA4ZZ4OHAET1EXUKL4ESPS7",
+);
+assert.equal(
+  sync.sessionIdentity("prime_video", "Neagley", "https://www.primevideo.com/detail/0FWBA4ZZ4OHAET1EXUKL4ESPS7/ref=other"),
+  "prime_video:https://www.primevideo.com/detail/0FWBA4ZZ4OHAET1EXUKL4ESPS7",
+);
 const legacySessions = {
   "netflix:le roi": {
     provider: "netflix",
@@ -114,5 +138,43 @@ runInNewContext(readFileSync(new URL("../content.js", import.meta.url), "utf8"),
   },
 });
 assert.deepEqual(clearedIntervals, [7]);
+
+const disneyHeartbeats = [];
+const disneyVideo = {
+  duration: Infinity,
+  currentTime: 2810,
+  paused: false,
+  seekable: { length: 1, start: () => 2800, end: () => 4711 },
+  clientWidth: 1280,
+  clientHeight: 720,
+  getAttribute: (name) => name === "aria-label" ? "Perfect Crown" : null,
+  addEventListener() {},
+  removeEventListener() {},
+};
+const disneyShadowRoot = {
+  querySelector: (selector) => {
+    if (selector === "video[aria-label]") return disneyVideo;
+    if (selector === "h1") return { textContent: "Up Next" };
+    return null;
+  },
+  querySelectorAll: (selector) => selector === "video" ? [disneyVideo] : [],
+};
+const disneyDocument = {
+  title: "Perfect Crown | Disney+",
+  querySelector: () => null,
+  querySelectorAll: (selector) => selector === "*" ? [{ shadowRoot: disneyShadowRoot }] : [],
+};
+runInNewContext(readFileSync(new URL("../content.js", import.meta.url), "utf8"), {
+  chrome: { runtime: { sendMessage(message) { disneyHeartbeats.push(message); return Promise.resolve({}); } } },
+  document: disneyDocument,
+  location: { hostname: "disneyplus.com", href: "https://disneyplus.com/en-gb/play/e1234eda-704c-4729-a47e-e8be088bc61f" },
+  navigator: {},
+  ReelSync: sync,
+  window: { setInterval: () => 8, clearInterval() {} },
+});
+assert.equal(disneyHeartbeats[0]?.type, "HEARTBEAT");
+assert.equal(disneyHeartbeats[0]?.payload.title, "Perfect Crown");
+assert.equal(disneyHeartbeats[0]?.payload.currentTime, 10);
+assert.equal(disneyHeartbeats[0]?.payload.duration, 1911);
 
 console.log("sync tests passed");

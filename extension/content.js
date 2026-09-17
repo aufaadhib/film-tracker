@@ -1,5 +1,6 @@
 const PROVIDERS = {
   "www.netflix.com": "netflix",
+  "disneyplus.com": "disney",
   "www.disneyplus.com": "disney",
   "www.primevideo.com": "prime_video",
   "play.max.com": "max",
@@ -14,7 +15,7 @@ const PROVIDER_LABELS = {
 
 const TITLE_SELECTORS = {
   netflix: ['[data-uia="video-title"] h4', '[data-uia="video-title"]'],
-  disney: ['[data-testid="player-title"]', '[class*="title"] h1'],
+  disney: ['video[aria-label]', '[data-testid="player-title"]', '[class*="title" i] h1', 'h1', 'h2'],
   prime_video: ['[data-testid="detail-title"]', '.atvwebplayersdk-title-text'],
   max: ['[data-testid="player-title"]', '[class*="Title"] h1'],
 };
@@ -38,14 +39,55 @@ function cleanTitle(value) {
     .trim() ?? "";
 }
 
-function detectTitle() {
+function getSearchRoots() {
+  const roots = [document];
+  if (provider !== "disney") return roots;
+
+  for (const root of roots) {
+    for (const element of root.querySelectorAll("*")) {
+      if (element.shadowRoot) roots.push(element.shadowRoot);
+    }
+  }
+  return roots;
+}
+
+function detectTitle(roots) {
+  const mediaTitle = cleanTitle(globalThis.navigator?.mediaSession?.metadata?.title ?? "");
+  if (ReelSync.isUsefulTitle(mediaTitle, provider)) return mediaTitle;
+
   for (const selector of TITLE_SELECTORS[provider] ?? []) {
-    const value = document.querySelector(selector)?.textContent;
-    const title = cleanTitle(value ?? "");
-    if (ReelSync.isUsefulTitle(title, provider)) return title;
+    for (const root of roots) {
+      const element = root.querySelector(selector);
+      const value = element?.getAttribute?.("aria-label") ?? element?.textContent;
+      const title = cleanTitle(value ?? "");
+      if (ReelSync.isUsefulTitle(title, provider)) return title;
+    }
   }
   const fallback = cleanTitle(document.title);
   return ReelSync.isUsefulTitle(fallback, provider) ? fallback : "";
+}
+
+function playbackMetrics(video) {
+  const currentTime = Number(video?.currentTime);
+  if (!Number.isFinite(currentTime)) return null;
+
+  const duration = Number(video?.duration);
+  if (Number.isFinite(duration) && duration > 0) {
+    return { duration, currentTime: Math.max(0, Math.min(duration, currentTime)) };
+  }
+
+  const seekable = video?.seekable;
+  if (!seekable?.length) return null;
+  const rangeIndex = seekable.length - 1;
+  const seekableStart = Number(seekable.start(rangeIndex));
+  const seekableEnd = Number(seekable.end(rangeIndex));
+  const seekableDuration = seekableEnd - seekableStart;
+  if (!Number.isFinite(seekableDuration) || seekableDuration <= 0) return null;
+
+  return {
+    duration: seekableDuration,
+    currentTime: Math.max(0, Math.min(seekableDuration, currentTime - seekableStart)),
+  };
 }
 
 function showNotice(title, message) {
@@ -90,7 +132,8 @@ function showNotice(title, message) {
 }
 
 async function sendHeartbeat(force = false) {
-  if (!activeVideo || !activeTitle || !Number.isFinite(activeVideo.duration)) return;
+  const playback = playbackMetrics(activeVideo);
+  if (!activeVideo || !activeTitle || !playback) return;
   const now = Date.now();
   if (!force && now - lastHeartbeat < 15000) return;
   lastHeartbeat = now;
@@ -103,8 +146,8 @@ async function sendHeartbeat(force = false) {
         provider,
         title: activeTitle,
         url: location.href,
-        duration: Math.round(activeVideo.duration),
-        currentTime: Math.round(activeVideo.currentTime),
+        duration: Math.round(playback.duration),
+        currentTime: Math.round(playback.currentTime),
         playing: !activeVideo.paused,
         observedAt: new Date().toISOString(),
       },
@@ -144,17 +187,33 @@ function attachVideo(video) {
   video.addEventListener("pause", onPause, { passive: true });
 }
 
+function detachVideo() {
+  activeVideo?.removeEventListener("timeupdate", onTimeUpdate);
+  activeVideo?.removeEventListener("pause", onPause);
+  activeVideo = null;
+  activeTitle = "";
+  lastHeartbeat = 0;
+}
+
 function scan() {
   if (!extensionAvailable) return;
-  const title = detectTitle();
+  if (!ReelSync.isTrackablePlayback(provider, location.href)) {
+    detachVideo();
+    return;
+  }
+  const roots = getSearchRoots();
+  const title = detectTitle(roots);
   if (title && title !== activeTitle) {
     activeTitle = title;
     lastHeartbeat = 0;
     warningShownFor = "";
   }
 
-  const video = [...document.querySelectorAll("video")]
-    .sort((a, b) => b.clientWidth * b.clientHeight - a.clientWidth * a.clientHeight)[0];
+  const video = roots.flatMap((root) => [...root.querySelectorAll("video")])
+    .sort((a, b) => {
+      const labeled = Number(Boolean(b.getAttribute?.("aria-label"))) - Number(Boolean(a.getAttribute?.("aria-label")));
+      return labeled || b.clientWidth * b.clientHeight - a.clientWidth * a.clientHeight;
+    })[0];
   if (video) attachVideo(video);
   if (video && title) void sendHeartbeat();
 }

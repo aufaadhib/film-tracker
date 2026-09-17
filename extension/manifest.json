@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Reelmark Watch Detector",
-  "version": "0.7.5",
+  "version": "0.7.13",
   "description": "Mendeteksi film dan episode yang selesai ditonton di layanan streaming.",
   "permissions": ["storage", "identity"],
   "host_permissions": [
     "https://www.netflix.com/*",
+    "https://disneyplus.com/*",
     "https://www.disneyplus.com/*",
     "https://www.primevideo.com/*",
     "https://play.max.com/*",
@@ -22,6 +23,7 @@
     {
       "matches": [
         "https://www.netflix.com/*",
+        "https://disneyplus.com/*",
         "https://www.disneyplus.com/*",
         "https://www.primevideo.com/*",
         "https://play.max.com/*"
