@@ -3,7 +3,8 @@
 [hidden] { display: none !important; }
 body { width: 340px; margin: 0; color: #171923; background: #f5f7fb; }
 header { display: flex; height: 60px; align-items: center; gap: 9px; padding: 0 17px; border-bottom: 1px solid #171923; background: #fff; font-size: 12px; letter-spacing: -.2px; }
-.reel { display: grid; width: 29px; height: 29px; place-items: center; border: 1px solid #171923; border-radius: 50%; color: #fff; background: #3347d7; }
+.reel { display: block; width: 29px; height: 29px; }
+header strong { font-size: 14px; letter-spacing: -.5px; }
 .live { margin-left: auto; padding: 5px 7px; border: 1px solid #171923; border-radius: 999px; color: #171923; background: #72d6b2; font-family: monospace; font-size: 8px; }
 main { padding: 24px 17px; }
 .eyebrow { margin: 0 0 7px; color: #3347d7; font-family: monospace; font-size: 9px; font-weight: 700; letter-spacing: 1.3px; }
