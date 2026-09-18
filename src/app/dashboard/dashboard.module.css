@@ -114,6 +114,12 @@
 .setting button svg { flex: 0 0 auto; }
 .setting button:hover { border-color: var(--reel-blue); }
 .danger button { color: #fff; background: #bc3e3a; }
+.regionForm { display: grid; grid-template-columns: minmax(150px, 1fr) auto; align-items: end; gap: 7px; min-width: min(100%, 390px); }
+.regionForm label { display: grid; }
+.regionForm select { min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 9px; color: var(--ink); background: var(--canvas); }
+.regionForm button { align-self: stretch; }
+.regionForm small { min-height: 1em; grid-column: 1 / -1; color: var(--muted); font-size: .55rem; }
+.regionForm small.formError { color: #a33b38; }
 .errorState { display: grid; min-height: 55vh; place-items: start; align-content: center; gap: 12px; max-width: 620px; }
 .errorState h1 { margin: 0; font-family: var(--font-display), sans-serif; font-size: clamp(2rem, 7vw, 3.6rem); line-height: 1; letter-spacing: -.055em; }
 .errorState > p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.6; }
@@ -131,6 +137,7 @@
 @media (min-width: 1000px) { .grid { grid-template-columns: minmax(0, 1.45fr) minmax(290px, .65fr); } .continueGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .featureGrid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 620px) { .pageHeader { align-items: start; flex-direction: column; } }
 @media (max-width: 520px) { .deviceList li { align-items: stretch; flex-direction: column; } .deviceList button { width: 100%; min-height: 38px; } .pairingCard form, .pairingCard button { width: 100%; } }
+@media (max-width: 520px) { .regionForm { grid-template-columns: 1fr; width: 100%; } .regionForm small { grid-column: auto; } .regionForm button { width: 100%; } }
 @media (max-width: 520px) { .continuePanel .panelHead { align-items: start; flex-direction: column; } .continueCard footer { align-items: start; flex-direction: column; } .continueCard small { max-width: none; } .continueActions { width: 100%; justify-content: space-between; } .continueCard a { text-align: left; } }
 @media (max-width: 520px) { .pagination { justify-content: space-between; } .pagination > a span, .pageDisabled span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); } .pagination > a, .pageDisabled { width: 44px; padding: 0; } .pageNumbers { gap: 3px; } .pageNumbers > a, .pageCurrent { min-width: 40px; } }
 @media (prefers-reduced-motion: reduce) { .loadingPage { animation: none; } }

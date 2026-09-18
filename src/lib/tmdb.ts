@@ -4,6 +4,12 @@ import { z } from "zod";
 import { normalizeSeriesStatus, type CatalogResult, type SeriesStatus } from "@/lib/catalog";
 import { resolveNetflixEnglishTitle } from "@/lib/provider-title";
 import { mergeLocalizedTitle } from "@/lib/tmdb-localization";
+import {
+  normalizeWatchNetworks,
+  normalizeWatchProviders,
+  type WatchNetwork,
+  type WatchProvider,
+} from "@/lib/watchlist-utils";
 
 const responseSchema = z.object({
   results: z.array(
@@ -44,6 +50,40 @@ const detailSchema = z.object({
   in_production: z.boolean().nullable().optional(),
 });
 
+const rawProviderSchema = z.object({
+  provider_id: z.number().int().positive(),
+  provider_name: z.string(),
+  logo_path: z.string().nullable(),
+  display_priority: z.number().int(),
+});
+
+const watchProviderSchema = z.object({
+  results: z.record(z.string(), z.object({
+    link: z.string().url().optional(),
+    flatrate: z.array(rawProviderSchema).optional(),
+    free: z.array(rawProviderSchema).optional(),
+    ads: z.array(rawProviderSchema).optional(),
+  }).passthrough()),
+});
+
+const watchRegionSchema = z.object({
+  results: z.array(z.object({
+    iso_3166_1: z.string().length(2),
+    english_name: z.string(),
+    native_name: z.string().nullish(),
+  })),
+});
+
+const tvWatchProviderSchema = z.object({
+  networks: z.array(z.object({
+    id: z.number().int().positive(),
+    name: z.string(),
+    logo_path: z.string().nullable(),
+    origin_country: z.string().nullable(),
+  })),
+  "watch/providers": watchProviderSchema,
+});
+
 const demoCatalog: CatalogResult[] = [
   {
     tmdbId: 157336,
@@ -56,6 +96,7 @@ const demoCatalog: CatalogResult[] = [
     backdropPath: null,
     voteAverage: 8.5,
     seriesStatus: null,
+    releaseDate: "2014-11-05",
   },
   {
     tmdbId: 1399,
@@ -68,6 +109,7 @@ const demoCatalog: CatalogResult[] = [
     backdropPath: null,
     voteAverage: 8.4,
     seriesStatus: "ended",
+    releaseDate: "2011-04-17",
   },
   {
     tmdbId: 27205,
@@ -80,6 +122,7 @@ const demoCatalog: CatalogResult[] = [
     backdropPath: null,
     voteAverage: 8.4,
     seriesStatus: null,
+    releaseDate: "2010-07-15",
   },
   {
     tmdbId: 94997,
@@ -92,6 +135,7 @@ const demoCatalog: CatalogResult[] = [
     backdropPath: null,
     voteAverage: 8.3,
     seriesStatus: "ongoing",
+    releaseDate: "2022-08-21",
   },
 ];
 
@@ -114,6 +158,7 @@ function normalize(item: z.infer<typeof responseSchema>["results"][number]): Loc
       title,
       originalTitle: item.original_title ?? item.original_name ?? title,
       year: Number.isInteger(parsedYear) ? parsedYear : null,
+      releaseDate: date || null,
       overview: item.overview || "Sinopsis belum tersedia.",
       posterPath: item.poster_path ?? null,
       backdropPath: item.backdrop_path ?? null,
@@ -171,6 +216,7 @@ async function getTitleLanguage(tmdbId: number, mediaType: "movie" | "tv", langu
       title,
       originalTitle: item.original_title ?? item.original_name ?? title,
       year: Number.isInteger(year) ? year : null,
+      releaseDate: date || null,
       overview: item.overview || "Sinopsis belum tersedia.",
       posterPath: item.poster_path ?? null,
       backdropPath: item.backdrop_path ?? null,
@@ -180,6 +226,55 @@ async function getTitleLanguage(tmdbId: number, mediaType: "movie" | "tv", langu
         : null,
     },
   } satisfies LocalizedResult;
+}
+
+export async function getWatchProviders(
+  tmdbId: number,
+  mediaType: "movie" | "tv",
+  countryCode: string,
+): Promise<{ providers: WatchProvider[]; networks: WatchNetwork[]; link: string | null }> {
+  const token = process.env.TMDB_READ_ACCESS_TOKEN;
+  if (!token) return { providers: [], networks: [], link: null };
+
+  const url = new URL(mediaType === "tv"
+    ? `https://api.themoviedb.org/3/tv/${tmdbId}`
+    : `https://api.themoviedb.org/3/movie/${tmdbId}/watch/providers`);
+  if (mediaType === "tv") {
+    url.searchParams.set("language", "id-ID");
+    url.searchParams.set("append_to_response", "watch/providers");
+  }
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    next: { revalidate: 60 * 60 * 6 },
+  });
+  if (!response.ok) throw new Error(`TMDB watch providers merespons dengan status ${response.status}`);
+
+  const payload: unknown = await response.json();
+  const parsed = mediaType === "tv" ? tvWatchProviderSchema.parse(payload) : null;
+  const providerResults = parsed?.["watch/providers"] ?? watchProviderSchema.parse(payload);
+  const networks = parsed ? normalizeWatchNetworks(parsed.networks) : [];
+  const region = providerResults.results[countryCode.toUpperCase()];
+  if (!region) return { providers: [], networks, link: null };
+  return { providers: normalizeWatchProviders(region), networks, link: region.link ?? null };
+}
+
+export type WatchRegion = { code: string; name: string };
+
+export async function getWatchRegions(): Promise<WatchRegion[]> {
+  const token = process.env.TMDB_READ_ACCESS_TOKEN;
+  if (!token) return [{ code: "ID", name: "Indonesia" }];
+
+  const url = new URL("https://api.themoviedb.org/3/watch/providers/regions");
+  url.searchParams.set("language", "id-ID");
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    next: { revalidate: 60 * 60 * 24 * 7 },
+  });
+  if (!response.ok) throw new Error(`TMDB watch regions merespons dengan status ${response.status}`);
+
+  return watchRegionSchema.parse(await response.json()).results
+    .map((region) => ({ code: region.iso_3166_1, name: region.native_name || region.english_name }))
+    .sort((a, b) => a.code === "ID" ? -1 : b.code === "ID" ? 1 : a.name.localeCompare(b.name, "id-ID"));
 }
 
 export async function getSeriesStatus(tmdbId: number): Promise<SeriesStatus | null> {

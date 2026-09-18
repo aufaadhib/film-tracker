@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { formatDisplayTitle, type CatalogSearchItem } from "@/lib/catalog";
-import { CheckIcon, SearchIcon } from "@/components/icons";
+import { addToWatchlist } from "@/app/dashboard/watchlist/actions";
+import { BookmarkIcon, CheckIcon, SearchIcon } from "@/components/icons";
 import styles from "./catalog-search.module.css";
 
 type SearchState = "idle" | "loading" | "ready" | "empty" | "error";
@@ -18,6 +19,8 @@ export function CatalogSearch() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string[]>([]);
+  const [watchlistSaved, setWatchlistSaved] = useState<string[]>([]);
+  const [savingWatchlist, setSavingWatchlist] = useState<string | null>(null);
 
   useEffect(() => {
     const normalized = query.trim();
@@ -73,6 +76,10 @@ export function CatalogSearch() {
       if (!response.ok) throw new Error(payload.error);
 
       setSaved((current) => [...current, key]);
+      setWatchlistSaved((current) => current.filter((item) => item !== key));
+      setResults((current) => current.map((item) =>
+        `${item.mediaType}:${item.tmdbId}` === key ? { ...item, watchlist: null } : item,
+      ));
       setMessage(
         payload.mode === "demo"
           ? "Tersimpan untuk sesi demo. Hubungkan Supabase agar sinkron antarperangkat."
@@ -83,6 +90,22 @@ export function CatalogSearch() {
       setMessage(error instanceof Error ? error.message : "Riwayat gagal disimpan.");
     } finally {
       setSaving(null);
+    }
+  }
+
+  async function saveToWatchlist(title: CatalogSearchItem) {
+    const key = `${title.mediaType}:${title.tmdbId}`;
+    setSavingWatchlist(key);
+    setMessage("");
+    try {
+      const result = await addToWatchlist({ tmdbId: title.tmdbId, mediaType: title.mediaType });
+      if (result.status === "error") throw new Error(result.message);
+      setWatchlistSaved((current) => [...current, key]);
+      setMessage(`${formatDisplayTitle(title.title, title.originalTitle)} tersimpan di watchlist.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Watchlist gagal disimpan.");
+    } finally {
+      setSavingWatchlist(null);
     }
   }
 
@@ -123,6 +146,7 @@ export function CatalogSearch() {
           {results.slice(0, 6).map((title) => {
             const key = `${title.mediaType}:${title.tmdbId}`;
             const isSaved = saved.includes(key) || Boolean(title.watched);
+            const isInWatchlist = watchlistSaved.includes(key) || Boolean(title.watchlist);
             return (
               <li key={`${title.mediaType}-${title.tmdbId}`} className={styles.result}>
                 <div className={styles.poster}>
@@ -148,14 +172,24 @@ export function CatalogSearch() {
                   <h3>{formatDisplayTitle(title.title, title.originalTitle)}</h3>
                   <p>{title.overview}</p>
                 </div>
-                <button
-                  className={isSaved ? styles.savedButton : styles.addButton}
-                  type="button"
-                  onClick={() => markWatched(title)}
-                  disabled={saving === key || isSaved}
-                >
-                  {isSaved ? <><CheckIcon size={17} /> Sudah ditonton</> : saving === key ? "Menyimpan…" : "Tandai ditonton"}
-                </button>
+                <div className={styles.resultActions}>
+                  <button
+                    className={isSaved ? styles.savedButton : styles.addButton}
+                    type="button"
+                    onClick={() => markWatched(title)}
+                    disabled={saving === key || isSaved}
+                  >
+                    {isSaved ? <><CheckIcon size={17} /> Sudah ditonton</> : saving === key ? "Menyimpan…" : "Tandai ditonton"}
+                  </button>
+                  <button
+                    className={isInWatchlist ? styles.savedButton : styles.watchlistButton}
+                    type="button"
+                    onClick={() => saveToWatchlist(title)}
+                    disabled={savingWatchlist === key || isInWatchlist}
+                  >
+                    <BookmarkIcon size={16} /> {isInWatchlist ? "Di watchlist" : savingWatchlist === key ? "Menyimpan…" : isSaved ? "Tonton lagi" : "Watchlist"}
+                  </button>
+                </div>
               </li>
             );
           })}

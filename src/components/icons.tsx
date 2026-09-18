@@ -63,3 +63,11 @@ export function LogoutIcon({ size = 20, className }: IconProps) {
 export function TrashIcon({ size = 20, className }: IconProps) {
   return <svg {...base(size)} className={className}><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6M14 11v6"/></svg>;
 }
+
+export function BookmarkIcon({ size = 20, className }: IconProps) {
+  return <svg {...base(size)} className={className}><path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18l-6-4-6 4V4Z"/></svg>;
+}
+
+export function PinIcon({ size = 20, className }: IconProps) {
+  return <svg {...base(size)} className={className}><path d="m14 4 6 6-3 1-3.5 3.5.5 4.5-1 1-4-5-5-4 1-1 4.5.5L13 7l1-3Z"/><path d="m8 16-5 5"/></svg>;
+}

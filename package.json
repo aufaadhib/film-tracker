@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test:extension": "node extension/tests/coverage.test.mjs && node extension/tests/sync.test.mjs && node extension/tests/auth.test.mjs",
     "test:tmdb": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types src/lib/tmdb-localization.test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types src/lib/provider-title.test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types src/lib/catalog.test.mjs",
+    "test:watchlist": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types src/lib/watchlist.test.mjs",
     "db:link": "supabase link --project-ref meygidhddckzrarfdwsj",
     "db:push:dry": "supabase db push --dry-run",
     "db:push": "supabase db push",

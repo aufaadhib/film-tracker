@@ -3,15 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Brand } from "@/components/brand";
-import { CollectionIcon, ExtensionIcon, HistoryIcon, HomeIcon, ImportIcon, LogoutIcon, MoreIcon, SearchIcon, SettingsIcon } from "@/components/icons";
+import { BookmarkIcon, CollectionIcon, ExtensionIcon, HistoryIcon, HomeIcon, ImportIcon, LogoutIcon, MoreIcon, SearchIcon, SettingsIcon } from "@/components/icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut } from "@/app/auth/actions";
 import styles from "./dashboard-shell.module.css";
 
-const navigation = [
+const primaryNavigation = [
   { href: "/dashboard", label: "Overview", icon: HomeIcon },
+  { href: "/dashboard/watchlist", label: "Watchlist", icon: BookmarkIcon },
   { href: "/dashboard/history", label: "Riwayat", icon: HistoryIcon },
   { href: "/dashboard/discover", label: "Jelajahi", icon: SearchIcon },
+];
+
+const accountNavigation = [
   { href: "/dashboard/extension", label: "Extension", icon: ExtensionIcon },
   { href: "/dashboard/import", label: "Import", icon: ImportIcon },
   { href: "/dashboard/settings", label: "Pengaturan", icon: SettingsIcon },
@@ -23,21 +27,20 @@ function isActive(pathname: string, href: string) {
 
 export function DashboardShell({ children, name, email, databaseConnected }: { children: React.ReactNode; name: string; email: string; databaseConnected: boolean }) {
   const pathname = usePathname();
-  const mobileItems = navigation.slice(0, 4);
 
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
-        <Brand />
+        <div className={styles.sidebarBrand}><Brand /></div>
         <nav aria-label="Navigasi dashboard">
           <p>RUANG TONTON</p>
-          {navigation.slice(0, 4).map(({ href, label, icon: Icon }) => (
+          {primaryNavigation.map(({ href, label, icon: Icon }) => (
             <Link key={href} href={href} className={isActive(pathname, href) ? styles.active : undefined} aria-current={isActive(pathname, href) ? "page" : undefined}>
               <Icon size={19} /><span>{label}</span>
             </Link>
           ))}
           <p>AKUN</p>
-          {navigation.slice(4).map(({ href, label, icon: Icon }) => (
+          {accountNavigation.map(({ href, label, icon: Icon }) => (
             <Link key={href} href={href} className={isActive(pathname, href) ? styles.active : undefined} aria-current={isActive(pathname, href) ? "page" : undefined}>
               <Icon size={19} /><span>{label}</span>
             </Link>
@@ -66,7 +69,7 @@ export function DashboardShell({ children, name, email, databaseConnected }: { c
       </div>
 
       <nav className={styles.mobileNav} aria-label="Navigasi dashboard seluler">
-        {mobileItems.map(({ href, label, icon: Icon }) => (
+        {primaryNavigation.map(({ href, label, icon: Icon }) => (
           <Link key={href} href={href} className={isActive(pathname, href) ? styles.mobileActive : undefined} aria-current={isActive(pathname, href) ? "page" : undefined}>
             <Icon size={19} /><span>{label}</span>
           </Link>
@@ -74,6 +77,7 @@ export function DashboardShell({ children, name, email, databaseConnected }: { c
         <details>
           <summary aria-label="Buka menu lainnya"><MoreIcon size={19} /><span>Lainnya</span></summary>
           <div>
+            <Link href="/dashboard/extension"><ExtensionIcon size={18} /> Extension</Link>
             <Link href="/dashboard/import"><ImportIcon size={18} /> Import</Link>
             <Link href="/dashboard/settings"><SettingsIcon size={18} /> Pengaturan</Link>
             <Link href="/"><CollectionIcon size={18} /> Landing</Link>

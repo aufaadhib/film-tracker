@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     }
     const user = authData.user;
     const watched = new Map<string, { watchedAt: string; watchCount: number }>();
+    const watchlist = new Map<string, { id: string; isPriority: boolean }>();
 
     if (supabase && user && results.length) {
       const ids = results.map((item) => item.tmdbId);
@@ -45,12 +46,21 @@ export async function GET(request: Request) {
       }
       if (titles?.length) {
         const titleById = new Map(titles.map((title) => [title.id, `${title.media_type}:${title.tmdb_id}`]));
-        const { data: states, error: statesError } = await supabase
-          .from("user_media_state")
-          .select("title_id,last_watched_at,watch_count")
-          .eq("user_id", user.id)
-          .is("episode_id", null)
-          .in("title_id", titles.map((title) => title.id));
+        const titleIds = titles.map((title) => title.id);
+        const [statesResult, watchlistResult] = await Promise.all([
+          supabase
+            .from("user_media_state")
+            .select("title_id,last_watched_at,watch_count")
+            .eq("user_id", user.id)
+            .is("episode_id", null)
+            .in("title_id", titleIds),
+          supabase
+            .from("user_watchlist")
+            .select("id,title_id,is_priority")
+            .eq("user_id", user.id)
+            .in("title_id", titleIds),
+        ]);
+        const { data: states, error: statesError } = statesResult;
         if (statesError) {
           console.error("Catalog watched-state lookup failed", JSON.stringify({ code: statesError.code, message: statesError.message }));
           return Response.json({ error: "Status riwayat sedang tidak dapat dimuat." }, { status: 503 });
@@ -59,12 +69,25 @@ export async function GET(request: Request) {
           const key = titleById.get(state.title_id);
           if (key) watched.set(key, { watchedAt: state.last_watched_at, watchCount: state.watch_count });
         });
+        const { data: watchlistRows, error: watchlistError } = watchlistResult;
+        if (watchlistError) {
+          console.error("Catalog watchlist lookup failed", JSON.stringify({ code: watchlistError.code, message: watchlistError.message }));
+          return Response.json({ error: "Status watchlist sedang tidak dapat dimuat." }, { status: 503 });
+        }
+        watchlistRows?.forEach((row) => {
+          const key = titleById.get(row.title_id);
+          if (key) watchlist.set(key, { id: row.id, isPriority: row.is_priority });
+        });
       }
     }
 
     return Response.json({
       ...catalog,
-      results: results.map((item) => ({ ...item, watched: watched.get(`${item.mediaType}:${item.tmdbId}`) ?? null })),
+      results: results.map((item) => ({
+        ...item,
+        watched: watched.get(`${item.mediaType}:${item.tmdbId}`) ?? null,
+        watchlist: watchlist.get(`${item.mediaType}:${item.tmdbId}`) ?? null,
+      })),
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Catalog search failed", error);

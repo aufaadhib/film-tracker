@@ -6,6 +6,7 @@ export type CatalogResult = {
   title: string;
   originalTitle: string;
   year: number | null;
+  releaseDate?: string | null;
   overview: string;
   posterPath: string | null;
   backdropPath: string | null;
@@ -17,6 +18,10 @@ export type CatalogSearchItem = CatalogResult & {
   watched: null | {
     watchedAt: string;
     watchCount: number;
+  };
+  watchlist: null | {
+    id: string;
+    isPriority: boolean;
   };
 };
 
