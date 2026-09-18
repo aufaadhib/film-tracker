@@ -69,5 +69,15 @@ export async function POST(request: Request) {
     );
   }
 
+  if (title.mediaType === "tv") {
+    const { error: metadataError } = await supabase!.rpc("set_owned_catalog_status", {
+      p_tmdb_id: title.tmdbId,
+      p_series_status: title.seriesStatus,
+    });
+    if (metadataError) {
+      console.error("Catalog status sync failed", JSON.stringify({ code: metadataError.code, message: metadataError.message }));
+    }
+  }
+
   return Response.json({ mode: "supabase", watched: true });
 }

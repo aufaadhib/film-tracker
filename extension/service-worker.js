@@ -14,7 +14,7 @@ async function request(path, body, token) {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(20000),
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -25,7 +25,7 @@ async function request(path, body, token) {
   return result;
 }
 
-async function syncPending(watched, connection) {
+async function syncPending(watched, connection, force = false) {
   const normalized = ReelSync.normalizeSessionKeys(watched);
   if (!connection?.token) {
     if (normalized !== watched) await chrome.storage.local.set({ [WATCHED_KEY]: normalized });
@@ -36,6 +36,8 @@ async function syncPending(watched, connection) {
   const next = { ...normalized };
   for (const [key, original] of Object.entries(next)) {
     if (original.syncedAt) continue;
+    if (!force && original.syncAttemptedAt
+      && Date.now() - Date.parse(original.syncAttemptedAt) < 60_000) continue;
     const item = ReelSync.prepareWatchedItem(original, crypto.randomUUID());
     if (item !== original) changed = true;
 
@@ -46,11 +48,17 @@ async function syncPending(watched, connection) {
         displayTitle: result.title ?? item.displayTitle,
         originalTitle: result.originalTitle ?? item.originalTitle,
         syncedAt: new Date().toISOString(),
+        syncError: null,
         catalogMatched: result.matched,
       };
       changed = true;
     } catch (error) {
-      next[key] = item;
+      next[key] = {
+        ...item,
+        syncError: error.message || "Sinkronisasi gagal.",
+        syncAttemptedAt: new Date().toISOString(),
+      };
+      changed = true;
       if (error.status === 401) {
         await chrome.storage.local.remove(CONNECTION_KEY);
         connection.token = null;
@@ -87,7 +95,9 @@ async function syncProgressSessions(sessions, connection) {
     }
 
     try {
-      const result = await request("/api/extension/progress", ReelSync.toProgressPayload(item), connection.token);
+      const payload = ReelSync.toProgressPayload(item);
+      if (!payload) continue;
+      const result = await request("/api/extension/progress", payload, connection.token);
       if (result.dismissed || (result.title && result.title !== item.displayTitle) || (result.originalTitle && result.originalTitle !== item.originalTitle)) {
         next[key] = {
           ...item,
@@ -125,7 +135,7 @@ async function claimExtension(method, code, deviceName) {
     pairedAt: new Date().toISOString(),
   };
   await chrome.storage.local.set({ [INSTALL_ID_KEY]: installId, [CONNECTION_KEY]: connection });
-  await syncPending(stored[WATCHED_KEY] ?? {}, connection);
+  await syncPending(stored[WATCHED_KEY] ?? {}, connection, true);
   await syncProgressSessions(stored[SESSIONS_KEY] ?? {}, connection);
   return connection;
 }
@@ -198,7 +208,7 @@ function buildSummary(watchedRecords, sessionRecords, connection) {
   const sessions = ReelSync.normalizeSessionKeys(sessionRecords ?? {});
   const watched = Object.values(watchedMap)
     .filter((item) => ReelSync.isUsefulTitle(item.title, item.provider))
-    .map((item) => ({ ...item, title: ReelSync.formatTitle(item.displayTitle ?? item.title, item.originalTitle) }))
+    .map((item) => ({ ...item, title: ReelSync.formatEpisodeTitle(ReelSync.formatTitle(item.displayTitle ?? item.title, item.originalTitle), item.seasonNumber, item.episodeNumber, item.episodeTitle) }))
     .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
   const inProgress = ReelSync.listInProgress(sessions);
   const activeKeys = new Set(Object.entries(sessions)
@@ -206,7 +216,7 @@ function buildSummary(watchedRecords, sessionRecords, connection) {
     .map(([key]) => key));
   const recent = Object.entries(watchedMap)
     .filter(([key, item]) => !activeKeys.has(key) && ReelSync.isUsefulTitle(item.title, item.provider))
-    .map(([, item]) => ({ ...item, title: ReelSync.formatTitle(item.displayTitle ?? item.title, item.originalTitle) }))
+    .map(([, item]) => ({ ...item, title: ReelSync.formatEpisodeTitle(ReelSync.formatTitle(item.displayTitle ?? item.title, item.originalTitle), item.seasonNumber, item.episodeNumber, item.episodeTitle) }))
     .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
 
   return {
@@ -234,7 +244,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "REFRESH_SUMMARY") {
     chrome.storage.local.get([WATCHED_KEY, SESSIONS_KEY, CONNECTION_KEY]).then(async (data) => {
       const connection = data[CONNECTION_KEY] ?? null;
-      const watched = await syncPending(data[WATCHED_KEY] ?? {}, connection);
+      const watched = await syncPending(data[WATCHED_KEY] ?? {}, connection, true);
       const sessions = await syncProgressSessions(data[SESSIONS_KEY] ?? {}, connection);
       sendResponse(buildSummary(watched, sessions, connection));
     }).catch((error) => sendResponse({ error: error.message }));
@@ -265,11 +275,38 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type !== "HEARTBEAT") return false;
 
   const heartbeat = message.payload;
+  if (!ReelSync.isValidPlaybackPosition(heartbeat.duration, heartbeat.currentTime)) {
+    sendResponse({ ignored: true });
+    return false;
+  }
   chrome.storage.local.get([WATCHED_KEY, SESSIONS_KEY, CONNECTION_KEY]).then(async (data) => {
-    const key = ReelSync.sessionIdentity(heartbeat.provider, heartbeat.title, heartbeat.url);
-    const watched = ReelSync.normalizeSessionKeys(data[WATCHED_KEY] ?? {});
+    const key = ReelSync.sessionIdentity(heartbeat.provider, heartbeat.title, heartbeat.url, heartbeat.seasonNumber, heartbeat.episodeNumber);
+    let watched = ReelSync.normalizeSessionKeys(data[WATCHED_KEY] ?? {});
     const sessions = ReelSync.normalizeSessionKeys(data[SESSIONS_KEY] ?? {});
-    const storedPrevious = sessions[key] ?? {};
+    watched = await syncPending(watched, data[CONNECTION_KEY]);
+    let correctedPrevious = null;
+    if (heartbeat.seasonNumber != null && heartbeat.episodeNumber != null) {
+      for (const [legacyKey, item] of Object.entries(sessions)) {
+        if (legacyKey !== key
+          && item.provider === heartbeat.provider
+          && item.title === heartbeat.title
+          && item.url === heartbeat.url
+          && item.episodeNumber === heartbeat.episodeNumber) {
+          correctedPrevious ??= item;
+          delete sessions[legacyKey];
+        }
+      }
+      for (const [legacyKey, item] of [...Object.entries(watched), ...Object.entries(sessions)]) {
+        if (legacyKey !== key
+          && item.provider === heartbeat.provider
+          && item.title === heartbeat.title
+          && item.episodeNumber == null) {
+          delete watched[legacyKey];
+          delete sessions[legacyKey];
+        }
+      }
+    }
+    const storedPrevious = sessions[key] ?? correctedPrevious ?? {};
     const restartDismissed = ReelSync.shouldRestartDismissed(storedPrevious, heartbeat.playing);
     const previous = restartDismissed ? {
       displayTitle: storedPrevious.displayTitle,
@@ -279,10 +316,31 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const eventId = previous.eventId ?? crypto.randomUUID();
     const progress = ReelCoverage.playbackPercent(heartbeat.currentTime, heartbeat.duration);
     const previouslyWatched = Boolean(watchedItem);
-    const justCompleted = ReelCoverage.shouldRecordCompletion(progress, previouslyWatched, Boolean(previous.eventId));
+    const justCompleted = ReelCoverage.shouldRecordCompletion(progress, Number(previous.progress), previouslyWatched);
 
     if (previous.dismissed) {
-      sendResponse({ progress, title: ReelSync.formatTitle(previous.displayTitle ?? heartbeat.title, previous.originalTitle), dismissed: true, previouslyWatched: false, justCompleted: false });
+      sendResponse({ progress, title: ReelSync.formatEpisodeTitle(ReelSync.formatTitle(previous.displayTitle ?? heartbeat.title, previous.originalTitle), heartbeat.seasonNumber, heartbeat.episodeNumber, heartbeat.episodeTitle), dismissed: true, previouslyWatched: false, justCompleted: false });
+      return;
+    }
+
+    const completedPlayback = previouslyWatched
+      && ReelCoverage.isWatchedPosition(progress)
+      && !justCompleted;
+    if (completedPlayback) {
+      delete sessions[key];
+      await chrome.storage.local.set({ [WATCHED_KEY]: watched, [SESSIONS_KEY]: sessions });
+      await syncPending(watched, data[CONNECTION_KEY]);
+      sendResponse({
+        progress,
+        title: ReelSync.formatEpisodeTitle(
+          ReelSync.formatTitle(watchedItem.displayTitle ?? heartbeat.title, watchedItem.originalTitle),
+          heartbeat.seasonNumber,
+          heartbeat.episodeNumber,
+          heartbeat.episodeTitle,
+        ),
+        previouslyWatched: true,
+        justCompleted: false,
+      });
       return;
     }
 
@@ -302,6 +360,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         title: heartbeat.title,
         displayTitle: previous.displayTitle ?? watchedItem?.displayTitle,
         originalTitle: previous.originalTitle ?? watchedItem?.originalTitle,
+        seasonNumber: heartbeat.seasonNumber ?? null,
+        episodeNumber: heartbeat.episodeNumber ?? null,
+        episodeTitle: heartbeat.episodeTitle ?? null,
         url: heartbeat.url,
         duration: heartbeat.duration,
         progress,
@@ -314,9 +375,18 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     let displayTitle = previous.displayTitle ?? watchedItem?.displayTitle ?? heartbeat.title;
     let originalTitle = previous.originalTitle ?? watchedItem?.originalTitle;
     if (justCompleted) {
-      const synced = await syncPending(watched, data[CONNECTION_KEY]);
-      displayTitle = synced[key]?.displayTitle ?? displayTitle;
-      originalTitle = synced[key]?.originalTitle ?? originalTitle;
+      const synced = await syncPending(watched, data[CONNECTION_KEY], true);
+      const syncedItem = synced[key];
+      displayTitle = syncedItem?.displayTitle ?? displayTitle;
+      originalTitle = syncedItem?.originalTitle ?? originalTitle;
+      sendResponse({
+        progress,
+        title: ReelSync.formatEpisodeTitle(ReelSync.formatTitle(displayTitle, originalTitle), heartbeat.seasonNumber, heartbeat.episodeNumber, heartbeat.episodeTitle),
+        previouslyWatched,
+        justCompleted,
+        synced: Boolean(syncedItem?.syncedAt),
+      });
+      return;
     } else if (data[CONNECTION_KEY]?.token) {
       try {
         const result = await request("/api/extension/progress", ReelSync.toProgressPayload(sessions[key]), data[CONNECTION_KEY].token);
@@ -334,7 +404,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         if (error.status === 401) await chrome.storage.local.remove(CONNECTION_KEY);
       }
     }
-    sendResponse({ progress, title: ReelSync.formatTitle(displayTitle, originalTitle), previouslyWatched, justCompleted });
+    sendResponse({ progress, title: ReelSync.formatEpisodeTitle(ReelSync.formatTitle(displayTitle, originalTitle), heartbeat.seasonNumber, heartbeat.episodeNumber, heartbeat.episodeTitle), previouslyWatched, justCompleted });
   });
 
   return true;

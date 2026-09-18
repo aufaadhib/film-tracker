@@ -11,6 +11,7 @@ const korean = {
   posterPath: "/korean.jpg",
   backdropPath: null,
   voteAverage: 8.2,
+  seriesStatus: "ended",
 };
 const english = {
   ...korean,

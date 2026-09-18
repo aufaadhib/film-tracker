@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Reelmark Watch Detector",
-  "version": "0.7.13",
+  "version": "0.7.38",
   "description": "Mendeteksi film dan episode yang selesai ditonton di layanan streaming.",
   "permissions": ["storage", "identity"],
   "host_permissions": [
@@ -20,6 +20,12 @@
     "default_popup": "popup.html"
   },
   "content_scripts": [
+    {
+      "matches": ["https://www.netflix.com/*"],
+      "js": ["netflix-metadata.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
     {
       "matches": [
         "https://www.netflix.com/*",

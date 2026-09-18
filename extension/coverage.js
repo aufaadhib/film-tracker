@@ -8,8 +8,10 @@
     return Number.isFinite(progress) && progress >= 80;
   }
 
-  function shouldRecordCompletion(progress, previouslyWatched, hadActiveSession) {
-    return isWatchedPosition(progress) && (!previouslyWatched || hadActiveSession);
+  function shouldRecordCompletion(progress, previousProgress, previouslyWatched) {
+    return isWatchedPosition(progress)
+      && (!previouslyWatched
+        || (Number.isFinite(previousProgress) && !isWatchedPosition(previousProgress)));
   }
 
   const api = { playbackPercent, isWatchedPosition, shouldRecordCompletion };

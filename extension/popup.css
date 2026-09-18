@@ -39,6 +39,7 @@ h2 { margin: 0 0 10px; font-size: 13px; }
 ol { margin: 0; padding: 0; list-style: none; }
 li { display: grid; grid-template-columns: 1fr auto; gap: 5px; padding: 11px 0; border-top: 1px solid #d7dbea; font-size: 12px; }
 li span { color: #3347d7; font-family: monospace; font-size: 9px; }
+li span.pending { color: #a3322f; }
 .progress-item { display: block; padding: 12px 0; }
 .progress-item > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 10px; }
 .progress-item strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }

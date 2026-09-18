@@ -10,15 +10,40 @@ const syncSchema = z.object({
   title: z.string().trim().min(1).max(300),
   canonicalTitle: z.string().trim().min(1).max(300).nullable().optional(),
   originalTitle: z.string().trim().min(1).max(300).nullable().optional(),
+  seasonNumber: z.number().int().nonnegative().max(999).nullable().optional(),
+  episodeNumber: z.number().int().positive().max(9999).nullable().optional(),
+  episodeTitle: z.string().trim().min(1).max(300).nullable().optional(),
   url: z.string().url().max(2048).nullable().optional(),
-  duration: z.number().int().positive().max(24 * 60 * 60).nullable().optional(),
-  progress: z.number().min(80).max(100).optional(),
-  coverage: z.number().min(80).max(100).optional(),
+  duration: z.preprocess(
+    (value) => typeof value === "number" && value > 24 * 60 * 60 ? null : value,
+    z.number().int().positive().max(24 * 60 * 60).nullable().optional(),
+  ),
+  progress: z.number().min(0).max(100).optional(),
+  coverage: z.number().min(0).max(100).optional(),
   watchedAt: z.string().datetime({ offset: true }),
-}).strict().refine((data) => data.progress !== undefined || data.coverage !== undefined);
+}).strict()
+  .refine((data) => data.progress !== undefined || data.coverage !== undefined)
+  .refine(
+    (data) => (data.seasonNumber == null) === (data.episodeNumber == null),
+    { message: "Season dan episode harus dikirim bersama." },
+  );
 
 function hash(value: string) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+async function within<T>(promise: Promise<T>, milliseconds: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Catalog lookup timed out")), milliseconds);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export async function POST(request: Request) {
@@ -29,17 +54,28 @@ export async function POST(request: Request) {
   }
 
   const body = syncSchema.safeParse(await request.json().catch(() => null));
-  if (!body.success || !isUsefulDetectedTitle(body.data.title, body.data.provider)) {
+  if (!body.success) {
+    console.warn("Extension watch payload rejected", JSON.stringify(body.error.issues.map((issue) => ({
+      path: issue.path.join("."),
+      code: issue.code,
+      message: issue.message,
+    }))));
+    return Response.json({ error: "Data tontonan tidak valid." }, { status: 400 });
+  }
+  if (!isUsefulDetectedTitle(body.data.title, body.data.provider)) {
+    console.warn("Extension watch title rejected", JSON.stringify({ provider: body.data.provider }));
     return Response.json({ error: "Data tontonan tidak valid." }, { status: 400 });
   }
   const providerItemId = normalizeProviderUrl(body.data.provider, body.data.url)?.slice(0, 1000) ?? null;
   if (!isTrackableProviderUrl(body.data.provider, providerItemId)) {
+    console.warn("Extension watch URL rejected", JSON.stringify({ provider: body.data.provider, hasUrl: Boolean(providerItemId) }));
     return Response.json({ error: "Halaman ini bukan pemutar yang didukung." }, { status: 400 });
   }
 
   const watchedAt = Date.parse(body.data.watchedAt);
   const now = Date.now();
   if (watchedAt > now + 5 * 60 * 1000 || watchedAt < now - 365 * 24 * 60 * 60 * 1000) {
+    console.warn("Extension watch timestamp rejected", JSON.stringify({ watchedAt: body.data.watchedAt }));
     return Response.json({ error: "Waktu tontonan tidak valid." }, { status: 400 });
   }
 
@@ -50,24 +86,27 @@ export async function POST(request: Request) {
 
   let match = null;
   try {
-    match = await resolveCatalogMatch({
+    match = await within(resolveCatalogMatch({
       canonicalTitle: body.data.canonicalTitle,
       detectedTitle: body.data.title,
       provider: body.data.provider,
       providerUrl: body.data.url,
-    });
+    }), 7000);
   } catch (error) {
     console.error("Extension catalog match failed", error);
   }
 
-  const { data, error } = await supabase.rpc("sync_extension_watch", {
+  const { data, error } = await supabase.rpc("sync_extension_watch_v2", {
     p_token_hash: hash(token),
     p_event_id: body.data.eventId,
     p_provider: body.data.provider,
     p_provider_item_id: providerItemId,
     p_detected_title: body.data.title,
+    p_season_number: body.data.seasonNumber ?? null,
+    p_episode_number: body.data.episodeNumber ?? null,
+    p_episode_title: body.data.episodeTitle ?? null,
     p_duration_seconds: body.data.duration ?? null,
-    p_coverage_percent: body.data.progress ?? body.data.coverage,
+    p_coverage_percent: Math.max(80, body.data.progress ?? body.data.coverage ?? 80),
     p_watched_at: body.data.watchedAt,
     p_tmdb_id: match?.tmdbId ?? null,
     p_media_type: match?.mediaType ?? null,
@@ -91,6 +130,17 @@ export async function POST(request: Request) {
   }
   if (!result.synced) {
     return Response.json({ error: "Tontonan ditolak karena datanya tidak valid." }, { status: 400 });
+  }
+
+  if (match?.mediaType === "tv") {
+    const { error: metadataError } = await supabase.rpc("set_extension_catalog_status", {
+      p_token_hash: hash(token),
+      p_tmdb_id: match.tmdbId,
+      p_series_status: match.seriesStatus,
+    });
+    if (metadataError) {
+      console.error("Extension catalog status sync failed", JSON.stringify({ code: metadataError.code, message: metadataError.message }));
+    }
   }
 
   return Response.json({

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, DM_Sans, Space_Mono } from "next/font/google";
 import { getSiteUrl } from "@/lib/site";
+import "sweetalert2/dist/sweetalert2.min.css";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display" });

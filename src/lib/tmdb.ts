@@ -1,7 +1,7 @@
 import "server-only";
 
 import { z } from "zod";
-import type { CatalogResult } from "@/lib/catalog";
+import { normalizeSeriesStatus, type CatalogResult, type SeriesStatus } from "@/lib/catalog";
 import { resolveNetflixEnglishTitle } from "@/lib/provider-title";
 import { mergeLocalizedTitle } from "@/lib/tmdb-localization";
 
@@ -40,6 +40,8 @@ const detailSchema = z.object({
   poster_path: z.string().nullable().optional(),
   backdrop_path: z.string().nullable().optional(),
   vote_average: z.number().optional(),
+  status: z.string().nullable().optional(),
+  in_production: z.boolean().nullable().optional(),
 });
 
 const demoCatalog: CatalogResult[] = [
@@ -53,6 +55,7 @@ const demoCatalog: CatalogResult[] = [
     posterPath: null,
     backdropPath: null,
     voteAverage: 8.5,
+    seriesStatus: null,
   },
   {
     tmdbId: 1399,
@@ -64,6 +67,7 @@ const demoCatalog: CatalogResult[] = [
     posterPath: null,
     backdropPath: null,
     voteAverage: 8.4,
+    seriesStatus: "ended",
   },
   {
     tmdbId: 27205,
@@ -75,6 +79,7 @@ const demoCatalog: CatalogResult[] = [
     posterPath: null,
     backdropPath: null,
     voteAverage: 8.4,
+    seriesStatus: null,
   },
   {
     tmdbId: 94997,
@@ -86,6 +91,7 @@ const demoCatalog: CatalogResult[] = [
     posterPath: null,
     backdropPath: null,
     voteAverage: 8.3,
+    seriesStatus: "ongoing",
   },
 ];
 
@@ -112,6 +118,7 @@ function normalize(item: z.infer<typeof responseSchema>["results"][number]): Loc
       posterPath: item.poster_path ?? null,
       backdropPath: item.backdrop_path ?? null,
       voteAverage: item.vote_average ?? 0,
+      seriesStatus: null,
     },
   };
 }
@@ -168,8 +175,27 @@ async function getTitleLanguage(tmdbId: number, mediaType: "movie" | "tv", langu
       posterPath: item.poster_path ?? null,
       backdropPath: item.backdrop_path ?? null,
       voteAverage: item.vote_average ?? 0,
+      seriesStatus: mediaType === "tv"
+        ? normalizeSeriesStatus(item.status, item.in_production)
+        : null,
     },
   } satisfies LocalizedResult;
+}
+
+export async function getSeriesStatus(tmdbId: number): Promise<SeriesStatus | null> {
+  const token = process.env.TMDB_READ_ACCESS_TOKEN;
+  if (!token) return demoCatalog.find((item) => item.tmdbId === tmdbId)?.seriesStatus ?? null;
+
+  const url = new URL(`https://api.themoviedb.org/3/tv/${tmdbId}`);
+  url.searchParams.set("language", "en-US");
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    next: { revalidate: 3600 },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`TMDB merespons dengan status ${response.status}`);
+  const item = detailSchema.parse(await response.json());
+  return normalizeSeriesStatus(item.status, item.in_production);
 }
 
 export async function getCatalogTitle(tmdbId: number, mediaType: "movie" | "tv"): Promise<CatalogResult | null> {
@@ -260,7 +286,14 @@ export async function resolveCatalogMatch({
   for (const candidate of candidates) {
     const catalog = await searchCatalog(candidate);
     const match = findExactCatalogMatch(candidate, catalog.results);
-    if (match) return match;
+    if (match) {
+      if (match.mediaType !== "tv") return match;
+      const seriesStatus = await getSeriesStatus(match.tmdbId).catch((error) => {
+        console.error("TMDB series status lookup failed", error);
+        return null;
+      });
+      return { ...match, seriesStatus };
+    }
   }
 
   return null;

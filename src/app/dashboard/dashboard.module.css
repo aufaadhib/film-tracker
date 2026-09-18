@@ -20,7 +20,11 @@
 .continueGrid { display: grid; gap: 10px; }
 .continueCard { min-width: 0; padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-soft); }
 .continueMeta, .continueTime, .continueCard footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.continueBadges { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 6px; }
 .continueMeta span { color: var(--reel-blue); font-family: var(--font-mono), monospace; font-size: .5rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.continueMeta .progressBadge, .continueMeta .releaseBadge { padding: 2px 5px; border-radius: 5px; font-size: .43rem; letter-spacing: .035em; }
+.continueMeta .progressBadge { color: #4f3500; background: color-mix(in srgb, var(--warning) 72%, transparent); }
+.continueMeta .releaseBadge { color: var(--ongoing-text); background: var(--ongoing-bg); }
 .continueMeta strong { font-family: var(--font-mono), monospace; font-size: .72rem; }
 .continueCard h3 { min-height: 2.5em; margin: 20px 0 14px; overflow: hidden; font-family: var(--font-display), sans-serif; font-size: 1.05rem; line-height: 1.2; letter-spacing: -.025em; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .continueCard progress { display: block; width: 100%; height: 8px; border: 0; border-radius: 99px; overflow: hidden; background: var(--line); }
@@ -68,9 +72,16 @@
 .filters input:focus-visible, .filters select:focus-visible { border-color: var(--reel-blue); }
 .filters button { min-height: 41px; align-self: end; border: 0; border-radius: 9px; color: #071019; background: var(--watched-mint); cursor: pointer; font-size: .68rem; font-weight: 800; }
 .filters button:hover { background: #75e4ba; }
-.pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 20px; color: var(--muted); font-size: .67rem; }
-.pagination a { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); }
-.pagination a:hover { border-color: var(--reel-blue); }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 20px; color: var(--muted); font-size: .67rem; }
+.pagination > a, .pageDisabled, .pageNumbers > a, .pageCurrent, .pageEllipsis { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; }
+.pagination > a { gap: 5px; padding: 0 12px; color: var(--ink); }
+.pagination a:hover { border-color: var(--reel-blue); background: color-mix(in srgb, var(--reel-blue) 7%, transparent); }
+.pagination a:focus-visible { outline: 3px solid color-mix(in srgb, var(--reel-blue) 35%, transparent); outline-offset: 2px; }
+.pageNumbers { display: flex; align-items: center; gap: 5px; }
+.pageNumbers > a { color: var(--ink); }
+.pageCurrent { border-color: var(--reel-blue); color: #fff; background: var(--reel-blue); font-weight: 800; }
+.pageEllipsis { min-width: 28px; border-color: transparent; }
+.pageDisabled { gap: 5px; padding: 0 12px; opacity: .42; }
 .featureGrid { display: grid; gap: 12px; margin-top: 24px; }
 .featureCard { padding: 20px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); }
 .featureCard svg { color: var(--reel-blue); }
@@ -121,4 +132,5 @@
 @media (max-width: 620px) { .pageHeader { align-items: start; flex-direction: column; } }
 @media (max-width: 520px) { .deviceList li { align-items: stretch; flex-direction: column; } .deviceList button { width: 100%; min-height: 38px; } .pairingCard form, .pairingCard button { width: 100%; } }
 @media (max-width: 520px) { .continuePanel .panelHead { align-items: start; flex-direction: column; } .continueCard footer { align-items: start; flex-direction: column; } .continueCard small { max-width: none; } .continueActions { width: 100%; justify-content: space-between; } .continueCard a { text-align: left; } }
+@media (max-width: 520px) { .pagination { justify-content: space-between; } .pagination > a span, .pageDisabled span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); } .pagination > a, .pageDisabled { width: 44px; padding: 0; } .pageNumbers { gap: 3px; } .pageNumbers > a, .pageCurrent { min-width: 40px; } }
 @media (prefers-reduced-motion: reduce) { .loadingPage { animation: none; } }

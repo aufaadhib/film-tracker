@@ -16,6 +16,8 @@
   --reel-blue-strong: #4c6ee8;
   --live-coral: #ff6b63;
   --watched-mint: #55d6a3;
+  --ongoing-bg: #55d6a3;
+  --ongoing-text: #0b3324;
   --warning: #f2bd58;
   --shadow: 0 18px 50px rgb(25 34 52 / 10%);
 }

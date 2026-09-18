@@ -20,6 +20,7 @@ function renderSummary(summary) {
   const recentWatched = summary?.recent ?? watched;
   const inProgress = summary?.inProgress ?? [];
   const connected = Boolean(summary?.connected);
+  const pendingSync = watched.filter((item) => !item.syncedAt).length;
   document.getElementById("watched-count").textContent = String(watched.length).padStart(2, "0");
   document.getElementById("active-count").textContent = String(summary?.activeCount ?? 0).padStart(2, "0");
   connectionState.textContent = connected ? "Terhubung" : "Belum terhubung";
@@ -28,7 +29,9 @@ function renderSummary(summary) {
   disconnectButton.hidden = !connected;
   manualRecovery.hidden = connected;
   pairMessage.textContent = connected
-    ? "Tontonan selesai akan disinkronkan otomatis."
+    ? pendingSync
+      ? `${pendingSync} tontonan selesai masih menunggu sinkronisasi.`
+      : "Tontonan selesai akan disinkronkan otomatis."
     : "Masuk sekali untuk menyinkronkan tontonan ke akunmu.";
   footerState.textContent = connected
     ? "Terhubung ke akun Reelmark · antrean offline aktif."
@@ -63,7 +66,11 @@ function renderSummary(summary) {
     const title = document.createElement("strong");
     const provider = document.createElement("span");
     title.textContent = item.title;
-    provider.textContent = providerLabels[item.provider] ?? item.provider;
+    provider.textContent = item.syncedAt
+      ? providerLabels[item.provider] ?? item.provider
+      : `${providerLabels[item.provider] ?? item.provider} · menunggu sinkron`;
+    provider.classList.toggle("pending", !item.syncedAt);
+    if (item.syncError) provider.title = item.syncError;
     row.append(title, provider);
     return row;
   }) : [Object.assign(document.createElement("li"), {

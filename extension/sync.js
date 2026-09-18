@@ -30,11 +30,24 @@
     return `${localized} (${original})`;
   }
 
+  function formatEpisodeTitle(title, seasonNumber, episodeNumber, episodeTitle) {
+    const episode = Number.isInteger(seasonNumber) && Number.isInteger(episodeNumber)
+      ? `S${seasonNumber}:E${episodeNumber}`
+      : "";
+    const name = String(episodeTitle ?? "").trim();
+    return [title, episode, name && !/^episode\s*\d+$/i.test(name) ? name : ""].filter(Boolean).join(" · ");
+  }
+
   function listInProgress(sessions) {
     return Object.values(sessions ?? {})
       .filter((item) => item && !item.dismissed && isUsefulTitle(item.title, item.provider))
       .map((item) => ({
-        title: formatTitle(item.displayTitle ?? item.title, item.originalTitle),
+        title: formatEpisodeTitle(
+          formatTitle(item.displayTitle ?? item.title, item.originalTitle),
+          item.seasonNumber,
+          item.episodeNumber,
+          item.episodeTitle,
+        ),
         provider: item.provider,
         progress: Math.max(0, Math.min(100, Math.round(Number(item.progress) || 0))),
         updatedAt: item.updatedAt ?? "",
@@ -64,26 +77,40 @@
   }
 
   function toSyncPayload(item) {
+    const seasonNumber = Number.isInteger(item.seasonNumber) && Number.isInteger(item.episodeNumber)
+      ? item.seasonNumber
+      : null;
+    const episodeNumber = seasonNumber != null ? item.episodeNumber : null;
+    const rawProgress = Number(item.progress ?? item.coverage);
     return {
       eventId: item.eventId,
       provider: item.provider,
       title: item.title,
       canonicalTitle: item.displayTitle ?? null,
       originalTitle: item.originalTitle ?? null,
+      seasonNumber,
+      episodeNumber,
+      episodeTitle: episodeNumber != null ? item.episodeTitle ?? null : null,
       url: item.url ?? null,
-      duration: Number.isInteger(item.duration) && item.duration > 0 ? item.duration : null,
-      progress: item.progress ?? item.coverage,
-      watchedAt: item.watchedAt,
+      duration: Number.isInteger(item.duration) && item.duration > 0 && item.duration <= 24 * 60 * 60
+        ? item.duration
+        : null,
+      progress: Number.isFinite(rawProgress) ? Math.max(80, Math.min(100, rawProgress)) : 80,
+      watchedAt: item.watchedAt ?? item.updatedAt ?? new Date().toISOString(),
     };
   }
 
   function toProgressPayload(item) {
+    if (!isValidPlaybackPosition(item.duration, item.currentTime)) return null;
     return {
       eventId: item.eventId,
       provider: item.provider,
       title: item.title,
       canonicalTitle: item.displayTitle ?? null,
       originalTitle: item.originalTitle ?? null,
+      seasonNumber: item.seasonNumber ?? null,
+      episodeNumber: item.episodeNumber ?? null,
+      episodeTitle: item.episodeTitle ?? null,
       url: item.url ?? null,
       duration: item.duration,
       currentTime: item.currentTime,
@@ -92,7 +119,19 @@
     };
   }
 
-  function sessionIdentity(provider, title, value) {
+  function isValidPlaybackPosition(duration, currentTime) {
+    return Number.isInteger(duration)
+      && duration > 0
+      && duration <= 24 * 60 * 60
+      && Number.isInteger(currentTime)
+      && currentTime >= 0
+      && currentTime <= duration + 30;
+  }
+
+  function sessionIdentity(provider, title, value, seasonNumber, episodeNumber) {
+    const episode = Number.isInteger(seasonNumber) && Number.isInteger(episodeNumber)
+      ? `:s${seasonNumber}e${episodeNumber}`
+      : "";
     const providerHosts = {
       netflix: ["www.netflix.com"],
       disney: ["disneyplus.com", "www.disneyplus.com"],
@@ -105,18 +144,18 @@
       if (url.protocol === "https:" && hosts.includes(url.hostname) && url.pathname !== "/") {
         if (provider === "prime_video") {
           const contentId = url.pathname.match(/\/detail\/([^/]+)/i)?.[1];
-          if (contentId) return `${provider}:https://${hosts[0]}/detail/${contentId}`;
+          if (contentId) return `${provider}:https://${hosts[0]}/detail/${contentId}${episode}`;
         }
-        return `${provider}:https://${hosts[0]}${url.pathname.replace(/\/$/, "")}`;
+        return `${provider}:https://${hosts[0]}${url.pathname.replace(/\/$/, "")}${episode}`;
       }
     } catch {}
-    return `${provider}:${String(title).toLocaleLowerCase().replace(/\s+/g, " ").trim()}`;
+    return `${provider}:${String(title).toLocaleLowerCase().replace(/\s+/g, " ").trim()}${episode}`;
   }
 
   function normalizeSessionKeys(records) {
     let normalized = records ?? {};
     for (const [key, item] of Object.entries(records ?? {})) {
-      const expected = sessionIdentity(item.provider, item.title, item.url);
+      const expected = sessionIdentity(item.provider, item.title, item.url, item.seasonNumber, item.episodeNumber);
       if (expected === key) continue;
       if (normalized === records) normalized = { ...records };
       const existing = normalized[expected];
@@ -128,7 +167,7 @@
     return normalized;
   }
 
-  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, formatTitle, listInProgress, shouldRestartDismissed, isTrackablePlayback, toSyncPayload, toProgressPayload, sessionIdentity, normalizeSessionKeys };
+  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, formatTitle, formatEpisodeTitle, listInProgress, shouldRestartDismissed, isTrackablePlayback, toSyncPayload, toProgressPayload, isValidPlaybackPosition, sessionIdentity, normalizeSessionKeys };
   root.ReelSync = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);

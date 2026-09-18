@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { searchCatalog } from "@/lib/tmdb";
+import { getCatalogTitle, searchCatalog } from "@/lib/tmdb";
 import { createClient } from "@/lib/supabase/server";
 
 const querySchema = z.string().trim().min(2).max(100);
@@ -16,6 +16,15 @@ export async function GET(request: Request) {
 
   try {
     const catalog = await searchCatalog(query.data);
+    const detailResults = await Promise.allSettled(catalog.results.slice(0, 6).map((item) =>
+      item.mediaType === "tv" ? getCatalogTitle(item.tmdbId, "tv") : Promise.resolve(item),
+    ));
+    const results = catalog.results.slice(0, 6).map((item, index) => {
+      const detail = detailResults[index];
+      return detail?.status === "fulfilled" && detail.value
+        ? { ...item, seriesStatus: detail.value.seriesStatus }
+        : item;
+    });
     const supabase = await createClient();
     const { data: authData, error: authError } = supabase
       ? await supabase.auth.getUser()
@@ -27,8 +36,8 @@ export async function GET(request: Request) {
     const user = authData.user;
     const watched = new Map<string, { watchedAt: string; watchCount: number }>();
 
-    if (supabase && user && catalog.results.length) {
-      const ids = catalog.results.map((item) => item.tmdbId);
+    if (supabase && user && results.length) {
+      const ids = results.map((item) => item.tmdbId);
       const { data: titles, error: titlesError } = await supabase.from("catalog_titles").select("id,tmdb_id,media_type").in("tmdb_id", ids);
       if (titlesError) {
         console.error("Catalog watched-title lookup failed", JSON.stringify({ code: titlesError.code, message: titlesError.message }));
@@ -55,7 +64,7 @@ export async function GET(request: Request) {
 
     return Response.json({
       ...catalog,
-      results: catalog.results.map((item) => ({ ...item, watched: watched.get(`${item.mediaType}:${item.tmdbId}`) ?? null })),
+      results: results.map((item) => ({ ...item, watched: watched.get(`${item.mediaType}:${item.tmdbId}`) ?? null })),
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Catalog search failed", error);

@@ -141,6 +141,7 @@ export function CatalogSearch() {
                   <div className={styles.meta}>
                     <span>{title.mediaType === "movie" ? "FILM" : "SERIAL"}</span>
                     <span>{title.year ?? "—"}</span>
+                    {title.seriesStatus === "ongoing" && <span className={styles.releaseStatus}>MASIH TAYANG</span>}
                     {title.voteAverage > 0 && <span>★ {title.voteAverage.toFixed(1)}</span>}
                     {title.watched && <span>{title.watched.watchCount}× ditonton</span>}
                   </div>
