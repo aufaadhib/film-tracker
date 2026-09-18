@@ -1,5 +1,6 @@
 .shell { min-height: 100vh; background: var(--canvas); }
 .sidebar { position: fixed; z-index: 30; inset: 0 auto 0 0; display: none; width: 244px; flex-direction: column; padding: 24px 18px 18px; color: #f5f7fa; background: var(--console); }
+.sidebarBrand { display: flex; width: 100%; justify-content: flex-start; }
 .sidebar nav { display: grid; gap: 4px; margin-top: 42px; }
 .sidebar nav p { margin: 24px 11px 8px; color: #687587; font-family: var(--font-mono), monospace; font-size: .48rem; letter-spacing: .12em; }
 .sidebar nav a { display: flex; min-height: 43px; align-items: center; gap: 12px; padding: 0 12px; border-radius: 10px; color: #929eae; font-size: .76rem; font-weight: 650; transition: color 150ms ease, background-color 150ms ease; }
@@ -39,6 +40,8 @@
 
 @media (min-width: 768px) {
   .sidebar { display: flex; width: 76px; align-items: center; padding-inline: 12px; }
+  .sidebarBrand { justify-content: center; overflow: hidden; }
+  .sidebarBrand strong { display: none; }
   .sidebar nav { width: 100%; }
   .sidebar nav p, .sidebar nav a span, .identityCopy, .sideLogout span { display: none; }
   .sidebar nav a { justify-content: center; padding: 0; }
@@ -55,6 +58,8 @@
 
 @media (min-width: 1120px) {
   .sidebar { width: 244px; align-items: stretch; padding-inline: 18px; }
+  .sidebarBrand { justify-content: flex-start; overflow: visible; }
+  .sidebarBrand strong { display: inline; }
   .sidebar nav p, .sidebar nav a span, .identityCopy { display: grid; }
   .sidebar nav a { justify-content: flex-start; padding-inline: 12px; }
   .sideFoot { padding: 10px; }

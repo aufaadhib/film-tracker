@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0B0F14"/>
+  <circle cx="1035" cy="95" r="260" fill="#6D8CFF" opacity=".12"/>
+  <g transform="translate(92 124) scale(1.45)" fill="none">
+    <circle cx="64" cy="64" r="56" stroke="#6D8CFF" stroke-width="8"/>
+    <circle cx="64" cy="64" r="10" fill="#6D8CFF"/>
+    <circle cx="64" cy="34" r="11" stroke="#6D8CFF" stroke-width="6"/>
+    <circle cx="38" cy="86" r="11" stroke="#6D8CFF" stroke-width="6"/>
+    <circle cx="90" cy="86" r="11" stroke="#6D8CFF" stroke-width="6"/>
+  </g>
+  <text x="92" y="360" fill="#F5F7FA" font-family="Arial, sans-serif" font-size="92" font-weight="700" letter-spacing="-5">reelmark</text>
+  <text x="96" y="430" fill="#AAB4C3" font-family="Arial, sans-serif" font-size="34">Riwayat tontonanmu, tersimpan otomatis.</text>
+  <path d="M96 498H1104" stroke="#273040" stroke-width="2"/>
+  <text x="96" y="550" fill="#6D8CFF" font-family="monospace" font-size="22" letter-spacing="4">MEMORY ON</text>
+</svg>

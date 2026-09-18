@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { CheckIcon, ExtensionIcon, FilmIcon, HistoryIcon } from "@/components/icons";
+import { PwaInstallButton } from "@/components/pwa-install-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getCurrentUser } from "@/lib/watched";
 import styles from "./page.module.css";
@@ -51,6 +52,7 @@ export default async function LandingPage() {
             <p className={styles.lead}>Reelmark mengingat film dan serial yang pernah kamu tonton—otomatis dari browser atau dicatat manual dalam hitungan detik.</p>
             <div className={styles.heroActions}>
               <Link className={styles.primaryButton} href={primaryHref}>{user ? "Buka dashboard" : "Mulai gratis"} <span>→</span></Link>
+              <PwaInstallButton className={styles.secondaryButton} />
               <Link className={styles.secondaryButton} href="/extension"><ExtensionIcon size={18} /> Pasang extension beta</Link>
             </div>
             <p className={styles.helper}>Chrome & Edge · Netflix, Disney+, Prime Video, dan Max</p>

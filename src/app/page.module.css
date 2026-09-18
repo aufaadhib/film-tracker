@@ -17,8 +17,9 @@
 .primaryButton { color: #071019; background: var(--watched-mint); }
 .primaryButton:hover { background: #75e4ba; }
 .primaryButton span { font-size: 1rem; }
-.secondaryButton { border: 1px solid var(--line-strong); background: var(--surface); }
+.secondaryButton { border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; }
 .secondaryButton:hover { border-color: var(--reel-blue); }
+.secondaryButton:disabled { cursor: wait; opacity: .65; }
 .helper { margin-top: 14px; color: var(--muted); font-size: .68rem; }
 .console { position: relative; min-width: 0; padding: 18px; overflow: hidden; border: 1px solid var(--console-line); border-radius: 22px; color: #f5f7fa; background: var(--console); box-shadow: 0 40px 90px rgb(5 10 18 / 28%); }
 .console::before { position: absolute; width: 280px; height: 280px; right: -120px; top: -160px; border-radius: 50%; background: var(--reel-blue); filter: blur(80px); opacity: .24; content: ""; }

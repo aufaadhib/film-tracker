@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, DM_Sans, Space_Mono } from "next/font/google";
+import { PwaRegister } from "@/components/pwa-register";
 import { getSiteUrl } from "@/lib/site";
 import "sweetalert2/dist/sweetalert2.min.css";
 import "./globals.css";
@@ -12,8 +13,24 @@ const description = "Catat film dan episode yang sudah kamu tonton, otomatis mau
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
+  applicationName: "Reelmark",
   title: { default: "Reelmark — Riwayat tontonanmu", template: "%s · Reelmark" },
   description,
+  category: "entertainment",
+  creator: "Reelmark",
+  publisher: "Reelmark",
+  openGraph: {
+    type: "website",
+    locale: "id_ID",
+    siteName: "Reelmark",
+    title: "Reelmark — Riwayat tontonanmu",
+    description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Reelmark — Riwayat tontonanmu",
+    description,
+  },
 };
 
 export const viewport: Viewport = {
@@ -32,6 +49,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head><link rel="preconnect" href="https://image.tmdb.org" /></head>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <PwaRegister />
         <a className="skip-link" href="#main-content">Lewati ke konten utama</a>
         {children}
       </body>
