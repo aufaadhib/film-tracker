@@ -131,6 +131,12 @@
 .loadingPage > div i, .loadingPage > section i { display: block; min-height: 110px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); }
 .loadingPage > section { display: grid; gap: 10px; }
 .loadingPage > section i { min-height: 72px; }
+.historyResultsLoading { display: grid; min-height: 420px; align-content: start; gap: 14px; animation: loadingPulse 1.4s ease-in-out infinite; }
+.historySkeletonToolbar { width: 116px; height: 44px; justify-self: end; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-soft); }
+.historySkeletonRow { display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: 22px 14px; gap: 9px 14px; min-height: 108px; align-content: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.historySkeletonRow i { width: 64px; height: 84px; grid-row: 1 / 3; border-radius: 9px; background: var(--surface-soft); }
+.historySkeletonRow span { width: min(460px, 82%); border-radius: 6px; background: var(--surface-soft); }
+.historySkeletonRow span:last-child { width: min(280px, 58%); }
 @keyframes loadingPulse { 50% { opacity: .58; } }
 
 @media (min-width: 640px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } .continueGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .filters { grid-template-columns: minmax(180px, 1fr) 140px 150px auto; } .featureGrid { grid-template-columns: repeat(2, 1fr); } .setting { grid-template-columns: minmax(0, 1fr) auto; align-items: center; } .loadingPage > div { grid-template-columns: repeat(4, 1fr); } }
@@ -140,4 +146,4 @@
 @media (max-width: 520px) { .regionForm { grid-template-columns: 1fr; width: 100%; } .regionForm small { grid-column: auto; } .regionForm button { width: 100%; } }
 @media (max-width: 520px) { .continuePanel .panelHead { align-items: start; flex-direction: column; } .continueCard footer { align-items: start; flex-direction: column; } .continueCard small { max-width: none; } .continueActions { width: 100%; justify-content: space-between; } .continueCard a { text-align: left; } }
 @media (max-width: 520px) { .pagination { justify-content: space-between; } .pagination > a span, .pageDisabled span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); } .pagination > a, .pageDisabled { width: 44px; padding: 0; } .pageNumbers { gap: 3px; } .pageNumbers > a, .pageCurrent { min-width: 40px; } }
-@media (prefers-reduced-motion: reduce) { .loadingPage { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .loadingPage, .historyResultsLoading { animation: none; } }
