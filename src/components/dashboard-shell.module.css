@@ -1,13 +1,13 @@
 .shell { min-height: 100vh; background: var(--canvas); }
-.sidebar { position: fixed; z-index: 30; inset: 0 auto 0 0; display: none; width: 244px; flex-direction: column; padding: 24px 18px 18px; color: #f5f7fa; background: var(--console); }
+.sidebar { position: fixed; z-index: 30; inset: 0 auto 0 0; display: none; width: 244px; overflow-y: auto; overscroll-behavior: contain; flex-direction: column; padding: 24px 18px 18px; color: #f5f7fa; background: var(--console); }
 .sidebarBrand { display: flex; width: 100%; justify-content: flex-start; }
-.sidebar nav { display: grid; gap: 4px; margin-top: 42px; }
+.sidebar nav { display: grid; flex: 0 0 auto; gap: 4px; margin-top: 42px; }
 .sidebar nav p { margin: 24px 11px 8px; color: #687587; font-family: var(--font-mono), monospace; font-size: .48rem; letter-spacing: .12em; }
 .sidebar nav a { display: flex; min-height: 43px; align-items: center; gap: 12px; padding: 0 12px; border-radius: 10px; color: #929eae; font-size: .76rem; font-weight: 650; transition: color 150ms ease, background-color 150ms ease; }
 .sidebar nav a:hover { color: #f5f7fa; background: #171e29; }
 .sidebar nav a.active { color: #f5f7fa; background: #1c2533; box-shadow: inset 3px 0 var(--reel-blue); }
 .sidebar nav a.active svg { color: var(--watched-mint); }
-.sideFoot { display: grid; gap: 10px; margin-top: auto; padding: 10px; border: 1px solid #273040; border-radius: 12px; }
+.sideFoot { display: grid; flex: 0 0 auto; gap: 10px; margin-top: auto; padding: 10px; border: 1px solid #273040; border-radius: 12px; }
 .identity { display: grid; grid-template-columns: 35px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0; }
 .identity > span { display: grid; width: 35px; height: 35px; place-items: center; border-radius: 50%; color: #071019; background: var(--watched-mint); font-family: var(--font-mono), monospace; font-size: .67rem; font-weight: 700; }
 .identityCopy { display: grid; min-width: 0; gap: 3px; }
@@ -56,7 +56,7 @@
   .main { padding: 38px 28px 64px; }
 }
 
-@media (min-width: 1120px) {
+@media (min-width: 1440px) and (min-height: 720px) {
   .sidebar { width: 244px; align-items: stretch; padding-inline: 18px; }
   .sidebarBrand { justify-content: flex-start; overflow: visible; }
   .sidebarBrand strong { display: inline; }
