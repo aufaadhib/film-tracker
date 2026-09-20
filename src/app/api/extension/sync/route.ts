@@ -28,6 +28,19 @@ const syncSchema = z.object({
     { message: "Season dan episode harus dikirim bersama." },
   );
 
+const storedCatalogMatchSchema = z.object({
+  tmdbId: z.number().int().positive(),
+  mediaType: z.enum(["movie", "tv"]),
+  title: z.string().min(1).max(300),
+  originalTitle: z.string().min(1).max(300),
+  year: z.number().int().nullable(),
+  overview: z.string(),
+  posterPath: z.string().nullable(),
+  backdropPath: z.string().nullable(),
+  voteAverage: z.number().min(0).max(10),
+  seriesStatus: z.enum(["ongoing", "ended", "upcoming"]).nullable(),
+});
+
 function hash(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -84,23 +97,42 @@ export async function POST(request: Request) {
     return Response.json({ error: "Backend Reelmark belum dikonfigurasi." }, { status: 503 });
   }
 
-  let match = null;
+  const tokenHash = hash(token);
+  const mappingResult = await supabase.rpc("get_confirmed_extension_catalog_mapping", {
+    p_token_hash: tokenHash,
+    p_provider: body.data.provider,
+    p_provider_item_id: providerItemId,
+  });
+  if (mappingResult.error) {
+    console.error("Extension catalog mapping lookup failed", JSON.stringify({ code: mappingResult.error.code, message: mappingResult.error.message }));
+    return Response.json({ error: "Pemetaan katalog belum dapat diperiksa." }, { status: 503 });
+  }
+  const storedMapping = mappingResult.data as { authenticated?: boolean; match?: unknown } | null;
+  if (!storedMapping?.authenticated) {
+    return Response.json({ error: "Pairing extension tidak lagi valid." }, { status: 401 });
+  }
+
+  const storedMatch = storedCatalogMatchSchema.safeParse(storedMapping.match);
+  let match = storedMatch.success ? storedMatch.data : null;
   let catalogLookupFailed = false;
-  try {
-    match = await within(resolveCatalogMatch({
-      canonicalTitle: body.data.canonicalTitle,
-      detectedTitle: body.data.title,
-      provider: body.data.provider,
-      providerUrl: body.data.url,
-    }), 7000);
-  } catch (error) {
-    catalogLookupFailed = true;
-    console.error("Extension catalog match failed", error);
+  if (!match) {
+    try {
+      match = await within(resolveCatalogMatch({
+        canonicalTitle: body.data.canonicalTitle,
+        detectedTitle: body.data.title,
+        provider: body.data.provider,
+        providerUrl: body.data.url,
+        expectedMediaType: body.data.episodeNumber != null ? "tv" : null,
+      }), 7000);
+    } catch (error) {
+      catalogLookupFailed = true;
+      console.error("Extension catalog match failed", error);
+    }
   }
 
   const coverage = body.data.progress ?? body.data.coverage ?? 0;
   const { data, error } = await supabase.rpc("sync_extension_watch_v4", {
-    p_token_hash: hash(token),
+    p_token_hash: tokenHash,
     p_event_id: body.data.eventId,
     p_provider: body.data.provider,
     p_provider_item_id: providerItemId,
@@ -152,7 +184,7 @@ export async function POST(request: Request) {
 
   if (match?.mediaType === "tv") {
     const { error: metadataError } = await supabase.rpc("set_extension_catalog_status", {
-      p_token_hash: hash(token),
+      p_token_hash: tokenHash,
       p_tmdb_id: match.tmdbId,
       p_series_status: match.seriesStatus,
     });

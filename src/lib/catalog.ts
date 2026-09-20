@@ -69,6 +69,31 @@ export function seriesStatusLabel(status?: SeriesStatus | null) {
   return null;
 }
 
+function normalizeComparableTitle(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("en-US")
+    .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
+    .trim();
+}
+
+export function findUniqueExactCatalogMatch(
+  query: string,
+  results: CatalogResult[],
+  expectedMediaType?: CatalogResult["mediaType"] | null,
+) {
+  const normalized = normalizeComparableTitle(query);
+  const matches = new Map<string, CatalogResult>();
+  for (const item of results) {
+    if (expectedMediaType && item.mediaType !== expectedMediaType) continue;
+    if (normalizeComparableTitle(item.title) !== normalized
+      && normalizeComparableTitle(item.originalTitle) !== normalized) continue;
+    matches.set(`${item.mediaType}:${item.tmdbId}`, item);
+  }
+  return matches.size === 1 ? [...matches.values()][0] : null;
+}
+
 export function formatEpisodeDisplayTitle(
   title: string,
   seasonNumber?: number | null,

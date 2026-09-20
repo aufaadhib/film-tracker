@@ -198,6 +198,7 @@ export const getViewer = cache(async (): Promise<{
       detectedTitle: item.detected_title,
       provider: item.provider,
       providerUrl: normalizeProviderUrl(item.provider, item.provider_item_id),
+      expectedMediaType: item.episode_number != null ? "tv" : item.media_type,
     }),
   ] as const));
   const progressMatches = new Map<string, Awaited<ReturnType<typeof resolveCatalogMatch>>>();

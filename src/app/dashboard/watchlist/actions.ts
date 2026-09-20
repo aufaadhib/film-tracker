@@ -132,12 +132,16 @@ export async function updateProviderRegion(
     return { status: "error", message: "Negara tersebut tidak didukung TMDB." };
   }
 
-  const { error } = await auth.supabase.from("profiles")
-    .update({ country_code: countryCode.data }).eq("id", auth.user.id);
+  const { data, error } = await auth.supabase.from("profiles")
+    .update({ country_code: countryCode.data })
+    .eq("id", auth.user.id)
+    .select("country_code")
+    .maybeSingle();
   if (error) {
     console.error("Update provider region failed", JSON.stringify({ code: error.code, message: error.message }));
     return { status: "error", message: "Negara provider belum berhasil disimpan." };
   }
+  if (!data) return { status: "error", message: "Profil pengguna tidak ditemukan." };
   refresh();
   return { status: "success", message: "Negara provider diperbarui." };
 }

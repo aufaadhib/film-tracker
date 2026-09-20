@@ -177,6 +177,7 @@ export async function POST(request: Request) {
         detectedTitle: body.data.title,
         provider: body.data.provider,
         providerUrl: body.data.url,
+        expectedMediaType: body.data.episodeNumber != null ? "tv" : null,
       });
       if (catalogMatch) {
         canonicalTitle = catalogMatch.title;

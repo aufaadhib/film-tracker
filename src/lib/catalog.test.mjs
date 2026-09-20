@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { formatDisplayTitle, groupWatchedTitles, normalizeSeriesStatus, seriesStatusLabel } from "./catalog.ts";
+import { findUniqueExactCatalogMatch, formatDisplayTitle, groupWatchedTitles, normalizeSeriesStatus, seriesStatusLabel } from "./catalog.ts";
 
 assert.equal(formatDisplayTitle("Interstellar", "Interstellar"), "Interstellar");
 assert.equal(
@@ -12,6 +12,13 @@ assert.equal(normalizeSeriesStatus("Ended", false), "ended");
 assert.equal(normalizeSeriesStatus("Planned", false), "upcoming");
 assert.equal(normalizeSeriesStatus("Unknown", false), null);
 assert.equal(seriesStatusLabel("ongoing"), "MASIH TAYANG");
+
+const sameTitleMovie = { tmdbId: 1, mediaType: "movie", title: "The Gift", originalTitle: "The Gift" };
+const sameTitleSeries = { tmdbId: 2, mediaType: "tv", title: "The Gift", originalTitle: "The Gift" };
+assert.equal(findUniqueExactCatalogMatch("The Gift", [sameTitleMovie, sameTitleSeries]), null);
+assert.equal(findUniqueExactCatalogMatch("The Gift", [sameTitleMovie, sameTitleSeries], "tv"), sameTitleSeries);
+const punctuatedTitle = { ...sameTitleMovie, title: "Spider-Man", originalTitle: "Spider-Man" };
+assert.equal(findUniqueExactCatalogMatch("spider man", [punctuatedTitle]), punctuatedTitle);
 
 const movie = { id: "movie", title: "Dune", mediaType: "movie", episodeNumber: null };
 const episode2 = { id: "e2", title: "Perfect Crown", mediaType: "tv", year: 2026, seasonNumber: 1, episodeNumber: 2 };

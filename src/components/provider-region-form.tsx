@@ -18,7 +18,7 @@ export function ProviderRegionForm({ regions, countryCode }: { regions: WatchReg
       <form action={action} className={styles.regionForm}>
         <label>
           <span className="sr-only">Pilih negara layanan streaming</span>
-          <select name="countryCode" defaultValue={countryCode} disabled={pending}>
+          <select key={countryCode} name="countryCode" defaultValue={countryCode} disabled={pending}>
             {regions.map((region) => <option key={region.code} value={region.code}>{region.name} ({region.code})</option>)}
           </select>
         </label>
