@@ -114,13 +114,13 @@
 .setting button svg { flex: 0 0 auto; }
 .setting button:hover { border-color: var(--reel-blue); }
 .danger button { color: #fff; background: #bc3e3a; }
-.regionForm { display: grid; grid-template-columns: minmax(150px, 1fr) auto; align-items: end; gap: 7px; min-width: min(100%, 390px); }
+.regionForm { display: grid; grid-template-columns: minmax(150px, 1fr) auto; align-items: end; justify-self: end; gap: 7px; width: min(100%, 390px); min-width: 0; }
 .regionForm label { display: grid; }
 .regionForm select { min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 9px; color: var(--ink); background: var(--canvas); }
 .regionForm button { align-self: stretch; }
 .regionForm small { min-height: 1em; grid-column: 1 / -1; color: var(--muted); font-size: .55rem; }
 .regionForm small.formError { color: #a33b38; }
-.thresholdForm { display: grid; grid-template-columns: minmax(130px, 170px) auto; align-items: end; gap: 7px; min-width: min(100%, 390px); }
+.thresholdForm { display: grid; grid-template-columns: minmax(130px, 1fr) auto; align-items: end; justify-self: end; gap: 7px; width: min(100%, 390px); min-width: 0; }
 .thresholdForm > label { grid-column: 1 / -1; color: var(--muted); font-size: .56rem; }
 .thresholdControl { position: relative; min-width: 0; }
 .thresholdControl input { width: 100%; min-height: 44px; padding: 0 34px 0 11px; border: 1px solid var(--line-strong); border-radius: 9px; color: var(--ink); background: var(--canvas); font-variant-numeric: tabular-nums; }
