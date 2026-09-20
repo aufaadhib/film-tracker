@@ -70,6 +70,15 @@
     return Boolean(item?.dismissed && playing);
   }
 
+  function reconcileWatchedState(item, serverPreviouslyWatched) {
+    const stale = serverPreviouslyWatched === false && Boolean(item?.syncedAt);
+    return {
+      stale,
+      locallyRecorded: !stale && Boolean(item),
+      previouslyWatched: serverPreviouslyWatched ?? Boolean(item?.syncedAt),
+    };
+  }
+
   function isTrackablePlayback(provider, value) {
     if (provider !== "netflix" && provider !== "disney" && provider !== "prime_video") return true;
     try {
@@ -178,7 +187,7 @@
     return normalized;
   }
 
-  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, formatTitle, formatEpisodeTitle, isActiveSession, listInProgress, shouldRestartDismissed, isTrackablePlayback, toSyncPayload, toProgressPayload, isValidPlaybackPosition, sessionIdentity, normalizeSessionKeys };
+  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, formatTitle, formatEpisodeTitle, isActiveSession, listInProgress, shouldRestartDismissed, reconcileWatchedState, isTrackablePlayback, toSyncPayload, toProgressPayload, isValidPlaybackPosition, sessionIdentity, normalizeSessionKeys };
   root.ReelSync = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);

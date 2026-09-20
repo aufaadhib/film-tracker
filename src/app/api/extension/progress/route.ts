@@ -211,7 +211,42 @@ export async function POST(request: Request) {
     }
   }
 
-  return Response.json({ synced: true, matched, dismissed: false, title: canonicalTitle, originalTitle, completionThreshold: preferences.completionThreshold }, {
+  const watchedStatusResult = await supabase.rpc("get_extension_watched_status", {
+    p_token_hash: hash(token),
+    p_provider: body.data.provider,
+    p_provider_item_id: providerItemId,
+    p_season_number: body.data.seasonNumber ?? null,
+    p_episode_number: body.data.episodeNumber ?? null,
+  });
+  if (watchedStatusResult.error) {
+    console.error("Extension watched status lookup failed", JSON.stringify({
+      code: watchedStatusResult.error.code,
+      message: watchedStatusResult.error.message,
+    }));
+    return Response.json({ error: "Status riwayat belum dapat diperiksa." }, {
+      status: 503,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+  const watchedStatus = watchedStatusResult.data as {
+    authenticated?: boolean;
+    valid?: boolean;
+    previously_watched?: boolean;
+  } | null;
+  if (!watchedStatus?.authenticated) {
+    return Response.json({ error: "Pairing extension tidak lagi valid." }, {
+      status: 401,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+  if (!watchedStatus.valid) {
+    return Response.json({ error: "Status riwayat tidak valid." }, {
+      status: 400,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+
+  return Response.json({ synced: true, matched, dismissed: false, title: canonicalTitle, originalTitle, previouslyWatched: Boolean(watchedStatus.previously_watched), completionThreshold: preferences.completionThreshold }, {
     headers: { "Cache-Control": "no-store" },
   });
 }

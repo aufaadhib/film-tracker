@@ -25,6 +25,21 @@ assert.equal(sync.formatEpisodeTitle("Perfect Crown", 1, 2, "The Choice"), "Perf
 assert.equal(sync.shouldRestartDismissed({ dismissed: true }, true), true);
 assert.equal(sync.shouldRestartDismissed({ dismissed: true }, false), false);
 assert.equal(sync.shouldRestartDismissed({ dismissed: false }, true), false);
+assert.deepEqual(sync.reconcileWatchedState({ syncedAt: "2026-09-20T00:00:00.000Z" }, false), {
+  stale: true,
+  locallyRecorded: false,
+  previouslyWatched: false,
+});
+assert.deepEqual(sync.reconcileWatchedState({ watchedAt: "2026-09-20T00:00:00.000Z" }, false), {
+  stale: false,
+  locallyRecorded: true,
+  previouslyWatched: false,
+});
+assert.deepEqual(sync.reconcileWatchedState(null, true), {
+  stale: false,
+  locallyRecorded: false,
+  previouslyWatched: true,
+});
 assert.equal(sync.isTrackablePlayback("netflix", "https://www.netflix.com/watch/81260288?trackId=1"), true);
 assert.equal(sync.isTrackablePlayback("netflix", "https://www.netflix.com/title/81260288"), false);
 assert.equal(sync.isTrackablePlayback("netflix", "https://www.netflix.com/browse"), false);
