@@ -340,15 +340,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const eventId = previous.eventId ?? crypto.randomUUID();
     const progress = ReelCoverage.playbackPercent(heartbeat.currentTime, heartbeat.duration);
     const completionThreshold = ReelCoverage.normalizeCompletionThreshold(data[CONNECTION_KEY]?.completionThreshold);
-    const previouslyWatched = Boolean(watchedItem);
-    const justCompleted = ReelCoverage.shouldRecordCompletion(progress, Number(previous.progress), previouslyWatched, completionThreshold);
+    const locallyWatched = Boolean(watchedItem);
+    const previouslyWatched = Boolean(watchedItem?.syncedAt);
+    const justCompleted = ReelCoverage.shouldRecordCompletion(progress, Number(previous.progress), locallyWatched, completionThreshold);
 
     if (previous.dismissed) {
       sendResponse({ progress, completionThreshold, title: ReelSync.formatEpisodeTitle(ReelSync.formatTitle(previous.displayTitle ?? heartbeat.title, previous.originalTitle), heartbeat.seasonNumber, heartbeat.episodeNumber, heartbeat.episodeTitle), dismissed: true, previouslyWatched: false, justCompleted: false });
       return;
     }
 
-    const completedPlayback = previouslyWatched
+    const completedPlayback = locallyWatched
       && ReelCoverage.isWatchedPosition(progress, completionThreshold)
       && !justCompleted;
     if (completedPlayback) {

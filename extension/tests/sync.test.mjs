@@ -291,10 +291,18 @@ assert.equal(disneyHeartbeats[0]?.payload.seasonNumber, 1);
 assert.equal(disneyHeartbeats[0]?.payload.episodeNumber, 1);
 assert.equal(disneyHeartbeats[0]?.payload.currentTime, 1282);
 assert.equal(disneyHeartbeats[0]?.payload.duration, 2777);
+disneyListeners.pause();
+assert.equal(disneyHeartbeats.length, 1);
+await new Promise(setImmediate);
 disneyEpisodeText = "";
 disneyScan();
 disneyListeners.pause();
 assert.equal(disneyHeartbeats.at(-1)?.payload.episodeNumber, 1);
+await new Promise(setImmediate);
+disneyEpisodeText = "S1:E2 Episode 2";
+disneyScan();
+assert.equal(disneyHeartbeats.at(-1)?.payload.seasonNumber, 1);
+assert.equal(disneyHeartbeats.at(-1)?.payload.episodeNumber, 2);
 
 const currentDisneyHeartbeats = [];
 const currentDisneyVideo = {

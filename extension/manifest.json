@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Reelmark Watch Detector",
-  "version": "0.7.44",
+  "version": "0.7.46",
   "description": "Mendeteksi film dan episode yang selesai ditonton di layanan streaming.",
   "icons": {
     "16": "icons/icon-16.png",

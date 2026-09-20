@@ -27,6 +27,7 @@ let activePlaybackUrl = "";
 let activeEpisode = null;
 let activeSeasonNumber = null;
 let lastHeartbeat = 0;
+let heartbeatInFlight = false;
 let warningShownFor = "";
 let extensionAvailable = true;
 let scanInterval;
@@ -118,16 +119,17 @@ function detectSeason(roots) {
 }
 
 function detectEpisode(roots, fallbackSeason) {
-  const complete = (episode) => episode && ({
+  const complete = (episode, confirmed = false) => episode && ({
     ...episode,
     seasonNumber: episode.seasonNumber ?? fallbackSeason ?? 1,
+    confirmed,
   });
 
   if (provider === "disney") {
     for (const root of roots) {
       for (const element of root.querySelectorAll('[data-qa="title-bug.subtitle"]')) {
         const episode = parseEpisode(element.textContent);
-        if (episode) return complete(episode);
+        if (episode) return complete(episode, true);
       }
     }
   }
@@ -136,7 +138,7 @@ function detectEpisode(roots, fallbackSeason) {
     for (const root of roots) {
       for (const element of root.querySelectorAll('.atvwebplayersdk-episode-info')) {
         const episode = parseEpisode(element.textContent);
-        if (episode) return complete(episode);
+        if (episode) return complete(episode, true);
       }
     }
   }
@@ -149,7 +151,7 @@ function detectEpisode(roots, fallbackSeason) {
           if (current.hidden || current.getAttribute?.("aria-hidden") === "true") continue;
           if (typeof current.getClientRects === "function" && current.getClientRects().length === 0) continue;
           const episode = parseEpisode(current.innerText || current.textContent || current.getAttribute?.("aria-label"));
-          if (episode) return complete(episode);
+          if (episode) return complete(episode, true);
         }
       }
     }
@@ -160,7 +162,7 @@ function detectEpisode(roots, fallbackSeason) {
     for (const element of root.querySelectorAll(selector)) {
       if (/next|upnext|pivot|recommend/.test(elementHint(element))) continue;
       const episode = parseEpisode(element.innerText || element.textContent || element.getAttribute?.("aria-label"));
-      if (episode) return complete(episode);
+      if (episode) return complete(episode, true);
     }
   }
 
@@ -353,10 +355,11 @@ async function sendHeartbeat(roots, force = false) {
   const playback = playbackMetrics(activeVideo, roots);
   if (!activeVideo || !activeTitle || !playback) return;
   const now = Date.now();
-  if (!force && now - lastHeartbeat < 15000) return;
+  if (heartbeatInFlight || (!force && now - lastHeartbeat < 15000)) return;
   lastHeartbeat = now;
 
   let response;
+  heartbeatInFlight = true;
   try {
     response = await chrome.runtime.sendMessage({
       type: "HEARTBEAT",
@@ -377,6 +380,8 @@ async function sendHeartbeat(roots, force = false) {
     extensionAvailable = false;
     window.clearInterval(scanInterval);
     return;
+  } finally {
+    heartbeatInFlight = false;
   }
 
   if (!response) return;
@@ -447,13 +452,19 @@ function scan() {
         episodeTitle: fallbackEpisode?.episodeNumber === netflixMetadata.episodeNumber
           ? fallbackEpisode.episodeTitle
           : null,
+        confirmed: true,
       }
       : null)
     : fallbackEpisode;
   const playbackUrl = location.href.split(/[?#]/)[0];
   const samePlayback = title === activeTitle && playbackUrl === activePlaybackUrl;
-  const episode = samePlayback && activeEpisode ? activeEpisode : detectedEpisode;
-  if (title && (!samePlayback || (!activeEpisode && episode))) {
+  const episodeChanged = samePlayback
+    && activeEpisode
+    && detectedEpisode?.confirmed
+    && (detectedEpisode.seasonNumber !== activeEpisode.seasonNumber
+      || detectedEpisode.episodeNumber !== activeEpisode.episodeNumber);
+  const episode = samePlayback && activeEpisode && !episodeChanged ? activeEpisode : detectedEpisode;
+  if (title && (!samePlayback || episodeChanged || (!activeEpisode && episode))) {
     activeTitle = title;
     activePlaybackUrl = playbackUrl;
     activeEpisode = episode;
