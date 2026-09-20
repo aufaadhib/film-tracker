@@ -71,16 +71,19 @@ assert.deepEqual(sync.normalizeSessionKeys(legacySessions), {
   "netflix:https://www.netflix.com/watch/81260288": legacySessions["netflix:le roi"],
 });
 
+const progressNow = Date.parse("2026-09-17T12:00:20.000Z");
 assert.deepEqual(sync.listInProgress({
   invalid: { title: "Netflix", provider: "netflix", progress: 0, updatedAt: "2026-09-17T13:00:00.000Z" },
   dismissed: { title: "Tenet", provider: "netflix", progress: 44, dismissed: true, updatedAt: "2026-09-17T14:00:00.000Z" },
   notification: { title: "(31) Netflix", provider: "netflix", progress: 11, updatedAt: "2026-09-17T13:00:00.000Z" },
   older: { title: " Le roi ", displayTitle: "The King: Eternal Monarch", originalTitle: "더 킹 : 영원의 군주", provider: "netflix", progress: 51.2, updatedAt: "2026-09-17T10:00:00.000Z" },
-  newer: { title: "Dune", provider: "max", progress: 72.6, updatedAt: "2026-09-17T12:00:00.000Z" },
-}), [
-  { title: "Dune", provider: "max", progress: 73, updatedAt: "2026-09-17T12:00:00.000Z" },
-  { title: "The King: Eternal Monarch (더 킹 : 영원의 군주)", provider: "netflix", progress: 51, updatedAt: "2026-09-17T10:00:00.000Z" },
+  newer: { title: "Dune", provider: "max", progress: 72.6, playing: true, updatedAt: "2026-09-17T12:00:00.000Z" },
+}, progressNow), [
+  { title: "Dune", provider: "max", progress: 73, updatedAt: "2026-09-17T12:00:00.000Z", active: true },
+  { title: "The King: Eternal Monarch (더 킹 : 영원의 군주)", provider: "netflix", progress: 51, updatedAt: "2026-09-17T10:00:00.000Z", active: false },
 ]);
+assert.equal(sync.isActiveSession({ playing: true, updatedAt: "2026-09-17T11:59:49.000Z" }, progressNow), false);
+assert.equal(sync.isActiveSession({ playing: false, updatedAt: "2026-09-17T12:00:19.000Z" }, progressNow), false);
 
 assert.deepEqual(sync.toSyncPayload({
   eventId: "event-id",

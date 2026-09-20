@@ -12,16 +12,21 @@ const connectionState = document.getElementById("connection-state");
 const footerState = document.getElementById("footer-state");
 const loginButton = document.getElementById("login-button");
 const disconnectButton = document.getElementById("disconnect-button");
+const retrySync = document.getElementById("retry-sync");
 const manualRecovery = document.getElementById("manual-recovery");
 const deviceName = `Chrome / Edge · ${navigator.platform || "Browser"}`;
+let lastSummary = null;
 
 function renderSummary(summary) {
+  lastSummary = summary;
   const watched = summary?.watched ?? [];
   const recentWatched = summary?.recent ?? watched;
   const inProgress = summary?.inProgress ?? [];
   const connected = Boolean(summary?.connected);
   const completionThreshold = Number(summary?.completionThreshold) || 80;
-  const pendingSync = watched.filter((item) => !item.syncedAt).length;
+  const pendingItems = watched.filter((item) => !item.syncedAt);
+  const pendingSync = pendingItems.length;
+  const firstSyncError = pendingItems.find((item) => item.syncError)?.syncError;
   document.getElementById("watched-count").textContent = String(watched.length).padStart(2, "0");
   document.getElementById("active-count").textContent = String(summary?.activeCount ?? 0).padStart(2, "0");
   document.getElementById("completion-copy").textContent = `Judul ditandai selesai saat posisi video mencapai ${completionThreshold}%.`;
@@ -29,10 +34,15 @@ function renderSummary(summary) {
   connectionState.classList.toggle("connected", connected);
   loginButton.hidden = connected;
   disconnectButton.hidden = !connected;
+  retrySync.hidden = !connected || !pendingSync;
+  retrySync.disabled = false;
+  retrySync.textContent = "Coba lagi";
   manualRecovery.hidden = connected;
   pairMessage.textContent = connected
     ? pendingSync
-      ? `${pendingSync} tontonan selesai masih menunggu sinkronisasi.`
+      ? firstSyncError
+        ? `${pendingSync} tontonan gagal disinkronkan. ${firstSyncError}`
+        : `${pendingSync} tontonan selesai masih menunggu sinkronisasi.`
       : "Tontonan selesai akan disinkronkan otomatis."
     : "Masuk sekali untuk menyinkronkan tontonan ke akunmu.";
   footerState.textContent = connected
@@ -47,6 +57,7 @@ function renderSummary(summary) {
     const title = document.createElement("strong");
     const percent = document.createElement("span");
     const provider = document.createElement("small");
+    const meta = document.createElement("div");
     const progress = document.createElement("progress");
     title.textContent = item.title;
     percent.textContent = `${item.progress}%`;
@@ -55,11 +66,19 @@ function renderSummary(summary) {
     progress.value = item.progress;
     progress.setAttribute("aria-label", `Posisi tontonan ${item.title}: ${item.progress}%`);
     heading.append(title, percent);
-    row.append(heading, progress, provider);
+    meta.className = "progress-meta";
+    meta.append(provider);
+    if (item.active) {
+      const active = document.createElement("span");
+      active.className = "active-badge";
+      active.textContent = "SEDANG DITONTON";
+      meta.append(active);
+    }
+    row.append(heading, progress, meta);
     return row;
   }) : [Object.assign(document.createElement("li"), {
     className: "empty",
-    textContent: "Belum ada tontonan yang sedang berjalan.",
+    textContent: "Belum ada riwayat progres.",
   })]));
 
   const recent = document.getElementById("recent");
@@ -70,15 +89,41 @@ function renderSummary(summary) {
     title.textContent = item.title;
     provider.textContent = item.syncedAt
       ? providerLabels[item.provider] ?? item.provider
-      : `${providerLabels[item.provider] ?? item.provider} · menunggu sinkron`;
+      : `${providerLabels[item.provider] ?? item.provider} · ${item.syncError ? "gagal sinkron" : "menunggu sinkron"}`;
     provider.classList.toggle("pending", !item.syncedAt);
-    if (item.syncError) provider.title = item.syncError;
     row.append(title, provider);
+    if (item.syncError) {
+      const error = document.createElement("small");
+      error.className = "sync-error";
+      error.textContent = item.syncError;
+      row.append(error);
+    }
     return row;
   }) : [Object.assign(document.createElement("li"), {
     className: "empty",
     textContent: "Belum ada tontonan yang selesai.",
   })]));
+}
+
+function refreshSummary() {
+  const pendingSync = (lastSummary?.watched ?? []).filter((item) => !item.syncedAt).length;
+  if (pendingSync) {
+    pairMessage.textContent = `Sedang menyinkronkan ${pendingSync} tontonan…`;
+    retrySync.hidden = false;
+    retrySync.disabled = true;
+    retrySync.textContent = "Menyinkronkan…";
+  }
+
+  chrome.runtime.sendMessage({ type: "REFRESH_SUMMARY" }, (refreshed) => {
+    if (chrome.runtime.lastError || refreshed?.error) {
+      pairMessage.textContent = refreshed?.error ?? "Sinkronisasi gagal. Periksa koneksi lalu coba lagi.";
+      retrySync.hidden = false;
+      retrySync.disabled = false;
+      retrySync.textContent = "Coba lagi";
+      return;
+    }
+    renderSummary(refreshed);
+  });
 }
 
 function loadSummary() {
@@ -88,13 +133,11 @@ function loadSummary() {
       return;
     }
     renderSummary(summary);
-
-    chrome.runtime.sendMessage({ type: "REFRESH_SUMMARY" }, (refreshed) => {
-      if (chrome.runtime.lastError || refreshed?.error) return;
-      renderSummary(refreshed);
-    });
+    refreshSummary();
   });
 }
+
+retrySync.addEventListener("click", refreshSummary);
 
 loginButton.addEventListener("click", () => {
   loginButton.disabled = true;

@@ -1,5 +1,6 @@
 (function exposeSync(root) {
   const apiBase = root.ReelConfig?.apiBase;
+  const ACTIVE_SESSION_WINDOW_MS = 30_000;
   if (!apiBase) throw new Error("Konfigurasi endpoint Reelmark belum dimuat.");
 
   function normalizePairCode(value) {
@@ -39,7 +40,15 @@
     return [title, episode, name && !/^episode\s*\d+$/i.test(name) ? name : ""].filter(Boolean).join(" · ");
   }
 
-  function listInProgress(sessions) {
+  function isActiveSession(item, now = Date.now()) {
+    const updatedAt = Date.parse(item?.updatedAt ?? "");
+    return Boolean(item?.playing)
+      && Number.isFinite(updatedAt)
+      && now >= updatedAt
+      && now - updatedAt <= ACTIVE_SESSION_WINDOW_MS;
+  }
+
+  function listInProgress(sessions, now = Date.now()) {
     return Object.values(sessions ?? {})
       .filter((item) => item && !item.dismissed && isUsefulTitle(item.title, item.provider))
       .map((item) => ({
@@ -52,6 +61,7 @@
         provider: item.provider,
         progress: Math.max(0, Math.min(100, Math.round(Number(item.progress) || 0))),
         updatedAt: item.updatedAt ?? "",
+        active: isActiveSession(item, now),
       }))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
@@ -168,7 +178,7 @@
     return normalized;
   }
 
-  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, formatTitle, formatEpisodeTitle, listInProgress, shouldRestartDismissed, isTrackablePlayback, toSyncPayload, toProgressPayload, isValidPlaybackPosition, sessionIdentity, normalizeSessionKeys };
+  const api = { apiBase, normalizePairCode, prepareWatchedItem, isUsefulTitle, formatTitle, formatEpisodeTitle, isActiveSession, listInProgress, shouldRestartDismissed, isTrackablePlayback, toSyncPayload, toProgressPayload, isValidPlaybackPosition, sessionIdentity, normalizeSessionKeys };
   root.ReelSync = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);
