@@ -13,7 +13,7 @@ Pelacak film dan episode yang sudah ditonton. Vertical slice saat ini mencakup d
 7. Setelah extension dimuat, salin ID extension dari `chrome://extensions`, isi `REELMARK_EXTENSION_IDS`, lalu restart server.
 8. Buka popup extension dan pilih **Masuk dengan Google**. Kode pairing di dashboard tetap tersedia sebagai pemulihan manual.
 
-Untuk mencoba deteksi otomatis, muat folder `extension/` sebagai unpacked extension. Petunjuk lengkap ada di `extension/README.md`.
+Untuk mencoba deteksi otomatis, jalankan `npm run extension:dev`, lalu muat folder `build/reelmark-extension-development` sebagai unpacked extension. Petunjuk lengkap ada di `extension/README.md`.
 
 Tanpa environment variable, dashboard dan pencarian tetap berjalan dalam mode demo. Data yang ditandai pada mode ini hanya berlaku untuk sesi UI dan tidak disimpan ke server.
 
@@ -43,4 +43,4 @@ Produk ini menggunakan TMDB API. Reelmark tidak didukung atau disertifikasi oleh
 
 Login extension menggunakan alur OAuth web, tetapi extension hanya menerima token perangkat terbatas yang disimpan dalam bentuk hash di database. Sinkronisasi saat ini otomatis memasukkan hasil dengan kecocokan judul TMDB yang persis; judul ambigu dan detail episode masih membutuhkan alur konfirmasi pada tahap berikutnya.
 
-Extension beta saat ini mengarah ke `http://localhost:3000`. Sebelum distribusi production, ubah `apiBase` di `extension/sync.js` dan tambahkan origin production yang spesifik ke `host_permissions` pada manifest.
+Source extension menggunakan `http://localhost:3000` untuk development. Jalankan `npm run extension:prod` untuk membuat ZIP production yang hanya mengarah ke `https://reelmark.afana.id`.

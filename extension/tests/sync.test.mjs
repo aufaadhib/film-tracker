@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
+import "../config.js";
 import sync from "../sync.js";
+
+assert.equal(sync.apiBase, "http://localhost:3000");
 
 assert.equal(sync.normalizePairCode("abcd-2345"), "ABCD2345");
 assert.equal(sync.normalizePairCode("IO10 abcd"), "ABCD");
@@ -102,7 +105,7 @@ assert.deepEqual(sync.toSyncPayload({
   watchedAt: "2026-09-17T12:00:00.000Z",
 });
 assert.equal(sync.toSyncPayload({ coverage: 82 }).progress, 82);
-assert.equal(sync.toSyncPayload({ progress: 7 }).progress, 80);
+assert.equal(sync.toSyncPayload({ progress: 7 }).progress, 7);
 assert.equal(sync.toSyncPayload({}).progress, 80);
 assert.equal(sync.toSyncPayload({ duration: 86_401 }).duration, null);
 const repairedEpisode = sync.toSyncPayload({ seasonNumber: 1, episodeNumber: null, episodeTitle: "Rusak" });

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { formatDisplayTitle, type CatalogResult } from "@/lib/catalog";
+import { getExtensionCompletionThreshold } from "@/lib/extension-preferences";
 import { isTrackableProviderUrl, isUsefulDetectedTitle, normalizeProviderUrl } from "@/lib/extension-title";
 import { createClient } from "@/lib/supabase/server";
 import { resolveCatalogMatch } from "@/lib/tmdb";
@@ -118,6 +119,20 @@ export async function POST(request: Request) {
     });
   }
 
+  const preferences = await getExtensionCompletionThreshold(supabase, hash(token));
+  if (preferences.error) {
+    return Response.json({ error: "Pengaturan extension belum dapat dimuat." }, {
+      status: 503,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+  if (!preferences.authenticated) {
+    return Response.json({ error: "Pairing extension tidak lagi valid." }, {
+      status: 401,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+
   const providerItemId = normalizeProviderUrl(body.data.provider, body.data.url)?.slice(0, 1000) ?? null;
   if (!isTrackableProviderUrl(body.data.provider, providerItemId)) {
     return Response.json({ error: "Video preview tidak disimpan sebagai progres." }, {
@@ -150,7 +165,7 @@ export async function POST(request: Request) {
   let failure = syncFailure(syncResult.data, syncResult.error);
   if (failure) return failure;
   if (wasDismissed(syncResult.data)) {
-    return Response.json({ synced: true, dismissed: true, title: canonicalTitle, originalTitle }, {
+    return Response.json({ synced: true, dismissed: true, title: canonicalTitle, originalTitle, completionThreshold: preferences.completionThreshold }, {
       headers: { "Cache-Control": "no-store" },
     });
   }
@@ -172,7 +187,7 @@ export async function POST(request: Request) {
         failure = syncFailure(syncResult.data, syncResult.error);
         if (failure) return failure;
         if (wasDismissed(syncResult.data)) {
-          return Response.json({ synced: true, dismissed: true, title: canonicalTitle, originalTitle }, {
+          return Response.json({ synced: true, dismissed: true, title: canonicalTitle, originalTitle, completionThreshold: preferences.completionThreshold }, {
             headers: { "Cache-Control": "no-store" },
           });
         }
@@ -195,7 +210,7 @@ export async function POST(request: Request) {
     }
   }
 
-  return Response.json({ synced: true, matched, dismissed: false, title: canonicalTitle, originalTitle }, {
+  return Response.json({ synced: true, matched, dismissed: false, title: canonicalTitle, originalTitle, completionThreshold: preferences.completionThreshold }, {
     headers: { "Cache-Control": "no-store" },
   });
 }

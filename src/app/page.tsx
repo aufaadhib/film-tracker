@@ -66,7 +66,7 @@ export default async function LandingPage() {
               <strong>78%</strong>
             </div>
             <div className={styles.timeline}><span /></div>
-            <div className={styles.markers}><span>00:00</span><b>Ambang ditonton · 80%</b><span>02:19:00</span></div>
+            <div className={styles.markers}><span>00:00</span><b>Ambang default · 80%</b><span>02:19:00</span></div>
             <div className={styles.consoleEvent}><CheckIcon size={18} /><span><strong>Past Lives</strong> ditandai sudah ditonton</span><time>kemarin</time></div>
           </div>
         </section>
@@ -82,7 +82,7 @@ export default async function LandingPage() {
           <div className={styles.steps}>
             <article><span>01</span><ExtensionIcon size={24} /><h3>Pasang detector</h3><p>Aktifkan extension beta di Chrome atau Edge dan pilih platform yang ingin dipantau.</p></article>
             <article><span>02</span><FilmIcon size={24} /><h3>Putar seperti biasa</h3><p>Reelmark membaca posisi video untuk menampilkan progres tontonanmu.</p></article>
-            <article><span>03</span><HistoryIcon size={24} /><h3>Buka arsipmu</h3><p>Setelah 80% terputar, judul masuk ke antrean extension dan disinkronkan ke akun yang sudah dipasangkan.</p></article>
+            <article><span>03</span><HistoryIcon size={24} /><h3>Buka arsipmu</h3><p>Setelah ambang akun tercapai, judul masuk ke antrean extension dan disinkronkan ke akun yang sudah dipasangkan.</p></article>
           </div>
         </section>
 
@@ -108,7 +108,7 @@ export default async function LandingPage() {
           <div className={styles.sectionIntro}><p className={styles.eyebrow}>FAQ</p><h2>Sebelum mulai.</h2></div>
           <div>
             <details><summary>Apakah extension sudah tersedia di Chrome Web Store?</summary><p>Belum. Versi ini adalah beta yang dipasang melalui Developer mode di Chrome atau Edge.</p></details>
-            <details><summary>Kapan sebuah judul dianggap sudah ditonton?</summary><p>Saat posisi pemutaran video mencapai 80% dari total durasi.</p></details>
+            <details><summary>Kapan sebuah judul dianggap sudah ditonton?</summary><p>Default-nya saat posisi mencapai 80%. Setelah masuk, kamu dapat mengaturnya antara 50–100% melalui Pengaturan.</p></details>
             <details><summary>Apakah extension sudah tersinkron ke dashboard?</summary><p>Sudah untuk versi lokal. Buat kode di Dashboard → Extension, lalu masukkan kode itu pada popup extension.</p></details>
           </div>
         </section>

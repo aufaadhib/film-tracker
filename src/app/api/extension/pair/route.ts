@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
+import { getExtensionCompletionThreshold } from "@/lib/extension-preferences";
 import { createClient } from "@/lib/supabase/server";
 
 const deviceSchema = {
@@ -55,7 +56,16 @@ export async function POST(request: Request) {
     return Response.json({ error: "Kode pairing salah, kedaluwarsa, atau sudah digunakan." }, { status: 400 });
   }
 
-  return Response.json({ token, deviceId: result.device_id }, {
+  const preferences = await getExtensionCompletionThreshold(supabase, hash(token));
+  if (preferences.error) {
+    return Response.json({ error: "Pengaturan extension belum dapat dimuat. Pastikan migration terbaru sudah dijalankan." }, { status: 503 });
+  }
+
+  return Response.json({
+    token,
+    deviceId: result.device_id,
+    completionThreshold: preferences.completionThreshold,
+  }, {
     headers: { "Cache-Control": "no-store" },
   });
 }

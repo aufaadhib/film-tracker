@@ -1,18 +1,23 @@
 import Link from "next/link";
 import { CheckIcon, ExtensionIcon, FilmIcon, SettingsIcon } from "@/components/icons";
 import { createClient } from "@/lib/supabase/server";
+import { getCompletionThreshold } from "@/lib/preferences";
 import { ExtensionPairing } from "./extension-pairing";
 import { revokeExtensionDevice } from "./actions";
 import styles from "../dashboard.module.css";
 
 export default async function ExtensionPage() {
   const supabase = await createClient();
-  const { data: devices, error } = supabase
-    ? await supabase
+  const devicesPromise = supabase
+    ? supabase
       .from("extension_devices")
       .select("id,device_name,last_seen_at,last_sync_at")
       .order("last_seen_at", { ascending: false })
     : { data: [], error: null };
+  const [{ data: devices, error }, completionThreshold] = await Promise.all([
+    devicesPromise,
+    getCompletionThreshold(),
+  ]);
 
   const migrationMissing = error?.code === "42703" || error?.code === "PGRST204" || error?.code === "PGRST205";
   if (error && !migrationMissing) {
@@ -39,7 +44,7 @@ export default async function ExtensionPage() {
             ? "Tabel extension belum tersedia. Jalankan migration Supabase terbaru, lalu muat ulang halaman ini."
             : "Supabase belum dikonfigurasi. Tambahkan environment variable yang diperlukan untuk mengaktifkan pairing."
           : connected
-          ? "Tontonan yang mencapai 80% akan dicoba sinkronkan otomatis. Riwayat lokal tetap disimpan sebagai antrean ketika jaringan terputus."
+          ? `Tontonan yang mencapai ${completionThreshold}% akan dicoba sinkronkan otomatis. Riwayat lokal tetap disimpan sebagai antrean ketika jaringan terputus.`
           : "Buka popup extension lalu pilih Masuk dengan Google. Reelmark akan menghubungkan browser ini ke akunmu secara otomatis."}</p>
         {devices?.length ? (
           <ul className={styles.deviceList}>
@@ -63,7 +68,7 @@ export default async function ExtensionPage() {
       {databaseReady ? <ExtensionPairing /> : null}
       <section className={styles.featureGrid}>
         <article className={styles.featureCard}><ExtensionIcon size={24} /><h2>4 platform</h2><p>Netflix, Disney+, Prime Video, dan Max pada Chrome atau Edge.</p></article>
-        <article className={styles.featureCard}><FilmIcon size={24} /><h2>Ambang 80%</h2><p>Judul ditandai selesai saat posisi pemutaran video mencapai 80%.</p></article>
+        <article className={styles.featureCard}><FilmIcon size={24} /><h2>Ambang {completionThreshold}%</h2><p>Judul ditandai selesai mengikuti preferensi akunmu di halaman Pengaturan.</p></article>
         <article className={styles.featureCard}><SettingsIcon size={24} /><h2>Antrean lokal</h2><p>Riwayat tetap berada di browser sampai backend mengonfirmasi sinkronisasi.</p></article>
         <article className={styles.featureCard}><CheckIcon size={24} /><h2>Kontrol pengguna</h2><p>Extension hanya berjalan pada host platform streaming yang tercantum di manifest.</p></article>
       </section>

@@ -1,4 +1,4 @@
-importScripts("coverage.js", "sync.js", "auth.js");
+importScripts("config.js", "coverage.js", "sync.js", "auth.js");
 
 const SESSIONS_KEY = "reelmark.sessions";
 const WATCHED_KEY = "reelmark.watched";
@@ -20,9 +20,23 @@ async function request(path, body, token) {
   if (!response.ok) {
     const error = new Error(result.error || "Reelmark tidak dapat dihubungi.");
     error.status = response.status;
+    error.details = result;
     throw error;
   }
   return result;
+}
+
+async function applyCompletionThreshold(connection, result) {
+  if (!connection) return ReelCoverage.DEFAULT_COMPLETION_THRESHOLD;
+  if (result?.completionThreshold == null) {
+    return ReelCoverage.normalizeCompletionThreshold(connection.completionThreshold);
+  }
+  const threshold = ReelCoverage.normalizeCompletionThreshold(result?.completionThreshold);
+  if (threshold !== connection.completionThreshold) {
+    connection.completionThreshold = threshold;
+    await chrome.storage.local.set({ [CONNECTION_KEY]: connection });
+  }
+  return threshold;
 }
 
 async function syncPending(watched, connection, force = false) {
@@ -43,6 +57,7 @@ async function syncPending(watched, connection, force = false) {
 
     try {
       const result = await request("/api/extension/sync", ReelSync.toSyncPayload(item), connection.token);
+      await applyCompletionThreshold(connection, result);
       next[key] = {
         ...item,
         displayTitle: result.title ?? item.displayTitle,
@@ -53,6 +68,12 @@ async function syncPending(watched, connection, force = false) {
       };
       changed = true;
     } catch (error) {
+      const threshold = await applyCompletionThreshold(connection, error.details);
+      if (error.status === 409 && Number(item.progress) < threshold) {
+        delete next[key];
+        changed = true;
+        continue;
+      }
       next[key] = {
         ...item,
         syncError: error.message || "Sinkronisasi gagal.",
@@ -98,6 +119,7 @@ async function syncProgressSessions(sessions, connection) {
       const payload = ReelSync.toProgressPayload(item);
       if (!payload) continue;
       const result = await request("/api/extension/progress", payload, connection.token);
+      await applyCompletionThreshold(connection, result);
       if (result.dismissed || (result.title && result.title !== item.displayTitle) || (result.originalTitle && result.originalTitle !== item.originalTitle)) {
         next[key] = {
           ...item,
@@ -133,6 +155,7 @@ async function claimExtension(method, code, deviceName) {
     token: result.token,
     deviceId: result.deviceId,
     pairedAt: new Date().toISOString(),
+    completionThreshold: ReelCoverage.normalizeCompletionThreshold(result.completionThreshold),
   };
   await chrome.storage.local.set({ [INSTALL_ID_KEY]: installId, [CONNECTION_KEY]: connection });
   await syncPending(stored[WATCHED_KEY] ?? {}, connection, true);
@@ -226,6 +249,7 @@ function buildSummary(watchedRecords, sessionRecords, connection) {
     activeCount: inProgress.length,
     connected: Boolean(connection?.token),
     pairedAt: connection?.pairedAt ?? null,
+    completionThreshold: ReelCoverage.normalizeCompletionThreshold(connection?.completionThreshold),
   };
 }
 
@@ -315,16 +339,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const watchedItem = watched[key];
     const eventId = previous.eventId ?? crypto.randomUUID();
     const progress = ReelCoverage.playbackPercent(heartbeat.currentTime, heartbeat.duration);
+    const completionThreshold = ReelCoverage.normalizeCompletionThreshold(data[CONNECTION_KEY]?.completionThreshold);
     const previouslyWatched = Boolean(watchedItem);
-    const justCompleted = ReelCoverage.shouldRecordCompletion(progress, Number(previous.progress), previouslyWatched);
+    const justCompleted = ReelCoverage.shouldRecordCompletion(progress, Number(previous.progress), previouslyWatched, completionThreshold);
 
     if (previous.dismissed) {
-      sendResponse({ progress, title: ReelSync.formatEpisodeTitle(ReelSync.formatTitle(previous.displayTitle ?? heartbeat.title, previous.originalTitle), heartbeat.seasonNumber, heartbeat.episodeNumber, heartbeat.episodeTitle), dismissed: true, previouslyWatched: false, justCompleted: false });
+      sendResponse({ progress, completionThreshold, title: ReelSync.formatEpisodeTitle(ReelSync.formatTitle(previous.displayTitle ?? heartbeat.title, previous.originalTitle), heartbeat.seasonNumber, heartbeat.episodeNumber, heartbeat.episodeTitle), dismissed: true, previouslyWatched: false, justCompleted: false });
       return;
     }
 
     const completedPlayback = previouslyWatched
-      && ReelCoverage.isWatchedPosition(progress)
+      && ReelCoverage.isWatchedPosition(progress, completionThreshold)
       && !justCompleted;
     if (completedPlayback) {
       delete sessions[key];
@@ -332,6 +357,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       await syncPending(watched, data[CONNECTION_KEY]);
       sendResponse({
         progress,
+        completionThreshold: ReelCoverage.normalizeCompletionThreshold(data[CONNECTION_KEY]?.completionThreshold),
         title: ReelSync.formatEpisodeTitle(
           ReelSync.formatTitle(watchedItem.displayTitle ?? heartbeat.title, watchedItem.originalTitle),
           heartbeat.seasonNumber,
@@ -377,19 +403,32 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (justCompleted) {
       const synced = await syncPending(watched, data[CONNECTION_KEY], true);
       const syncedItem = synced[key];
+      if (!syncedItem) {
+        sessions[key] = {
+          ...heartbeat,
+          eventId,
+          displayTitle,
+          originalTitle,
+          progress,
+          updatedAt: heartbeat.observedAt,
+        };
+        await chrome.storage.local.set({ [SESSIONS_KEY]: sessions });
+      }
       displayTitle = syncedItem?.displayTitle ?? displayTitle;
       originalTitle = syncedItem?.originalTitle ?? originalTitle;
       sendResponse({
         progress,
+        completionThreshold: ReelCoverage.normalizeCompletionThreshold(data[CONNECTION_KEY]?.completionThreshold),
         title: ReelSync.formatEpisodeTitle(ReelSync.formatTitle(displayTitle, originalTitle), heartbeat.seasonNumber, heartbeat.episodeNumber, heartbeat.episodeTitle),
         previouslyWatched,
-        justCompleted,
+        justCompleted: Boolean(syncedItem),
         synced: Boolean(syncedItem?.syncedAt),
       });
       return;
     } else if (data[CONNECTION_KEY]?.token) {
       try {
         const result = await request("/api/extension/progress", ReelSync.toProgressPayload(sessions[key]), data[CONNECTION_KEY].token);
+        await applyCompletionThreshold(data[CONNECTION_KEY], result);
         if (result.title) {
           sessions[key].displayTitle = result.title;
           displayTitle = result.title;
@@ -404,7 +443,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         if (error.status === 401) await chrome.storage.local.remove(CONNECTION_KEY);
       }
     }
-    sendResponse({ progress, title: ReelSync.formatEpisodeTitle(ReelSync.formatTitle(displayTitle, originalTitle), heartbeat.seasonNumber, heartbeat.episodeNumber, heartbeat.episodeTitle), previouslyWatched, justCompleted });
+    sendResponse({ progress, completionThreshold: ReelCoverage.normalizeCompletionThreshold(data[CONNECTION_KEY]?.completionThreshold), title: ReelSync.formatEpisodeTitle(ReelSync.formatTitle(displayTitle, originalTitle), heartbeat.seasonNumber, heartbeat.episodeNumber, heartbeat.episodeTitle), previouslyWatched, justCompleted });
   });
 
   return true;

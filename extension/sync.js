@@ -1,5 +1,6 @@
 (function exposeSync(root) {
-  const apiBase = "http://localhost:3000";
+  const apiBase = root.ReelConfig?.apiBase;
+  if (!apiBase) throw new Error("Konfigurasi endpoint Reelmark belum dimuat.");
 
   function normalizePairCode(value) {
     return String(value ?? "").toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, "").slice(0, 8);
@@ -95,7 +96,7 @@
       duration: Number.isInteger(item.duration) && item.duration > 0 && item.duration <= 24 * 60 * 60
         ? item.duration
         : null,
-      progress: Number.isFinite(rawProgress) ? Math.max(80, Math.min(100, rawProgress)) : 80,
+      progress: Number.isFinite(rawProgress) ? Math.max(0, Math.min(100, rawProgress)) : 80,
       watchedAt: item.watchedAt ?? item.updatedAt ?? new Date().toISOString(),
     };
   }

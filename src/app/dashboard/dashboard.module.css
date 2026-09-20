@@ -120,6 +120,16 @@
 .regionForm button { align-self: stretch; }
 .regionForm small { min-height: 1em; grid-column: 1 / -1; color: var(--muted); font-size: .55rem; }
 .regionForm small.formError { color: #a33b38; }
+.thresholdForm { display: grid; grid-template-columns: minmax(130px, 170px) auto; align-items: end; gap: 7px; min-width: min(100%, 390px); }
+.thresholdForm > label { grid-column: 1 / -1; color: var(--muted); font-size: .56rem; }
+.thresholdControl { position: relative; min-width: 0; }
+.thresholdControl input { width: 100%; min-height: 44px; padding: 0 34px 0 11px; border: 1px solid var(--line-strong); border-radius: 9px; color: var(--ink); background: var(--canvas); font-variant-numeric: tabular-nums; }
+.thresholdControl input:focus-visible { border-color: var(--reel-blue); outline: 3px solid color-mix(in srgb, var(--reel-blue) 20%, transparent); outline-offset: 1px; }
+.thresholdControl span { position: absolute; right: 12px; top: 50%; color: var(--muted); font-family: var(--font-mono), monospace; font-size: .65rem; transform: translateY(-50%); pointer-events: none; }
+.thresholdForm button { min-height: 44px; align-self: stretch; }
+.thresholdForm small { min-height: 1em; grid-column: 1 / -1; color: var(--muted); font-size: .55rem; line-height: 1.45; }
+.thresholdForm small + small { margin-top: -4px; }
+.thresholdForm small.formError { color: #a33b38; }
 .errorState { display: grid; min-height: 55vh; place-items: start; align-content: center; gap: 12px; max-width: 620px; }
 .errorState h1 { margin: 0; font-family: var(--font-display), sans-serif; font-size: clamp(2rem, 7vw, 3.6rem); line-height: 1; letter-spacing: -.055em; }
 .errorState > p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.6; }
@@ -144,6 +154,7 @@
 @media (max-width: 620px) { .pageHeader { align-items: start; flex-direction: column; } }
 @media (max-width: 520px) { .deviceList li { align-items: stretch; flex-direction: column; } .deviceList button { width: 100%; min-height: 38px; } .pairingCard form, .pairingCard button { width: 100%; } }
 @media (max-width: 520px) { .regionForm { grid-template-columns: 1fr; width: 100%; } .regionForm small { grid-column: auto; } .regionForm button { width: 100%; } }
+@media (max-width: 520px) { .thresholdForm { grid-template-columns: 1fr; width: 100%; } .thresholdForm > label, .thresholdForm small { grid-column: auto; } .thresholdForm button { width: 100%; } }
 @media (max-width: 520px) { .continuePanel .panelHead { align-items: start; flex-direction: column; } .continueCard footer { align-items: start; flex-direction: column; } .continueCard small { max-width: none; } .continueActions { width: 100%; justify-content: space-between; } .continueCard a { text-align: left; } }
 @media (max-width: 520px) { .pagination { justify-content: space-between; } .pagination > a span, .pageDisabled span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); } .pagination > a, .pageDisabled { width: 44px; padding: 0; } .pageNumbers { gap: 3px; } .pageNumbers > a, .pageCurrent { min-width: 40px; } }
 @media (prefers-reduced-motion: reduce) { .loadingPage, .historyResultsLoading { animation: none; } }

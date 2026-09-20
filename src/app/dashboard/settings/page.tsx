@@ -1,15 +1,18 @@
 import { ThemePicker } from "@/components/theme-picker";
+import { CompletionThresholdForm } from "@/components/completion-threshold-form";
 import { signOut } from "@/app/auth/actions";
 import { getCurrentUser } from "@/lib/watched";
 import { ProviderRegionForm } from "@/components/provider-region-form";
 import { getProviderCountryCode } from "@/lib/watchlist";
 import { getWatchRegions } from "@/lib/tmdb";
+import { getCompletionThreshold } from "@/lib/preferences";
 import styles from "../dashboard.module.css";
 
 export default async function SettingsPage() {
-  const [user, countryCode, regionResult] = await Promise.all([
+  const [user, countryCode, completionThreshold, regionResult] = await Promise.all([
     getCurrentUser(),
     getProviderCountryCode(),
+    getCompletionThreshold(),
     getWatchRegions()
       .then((regions) => ({ regions, error: false }))
       .catch((error) => {
@@ -27,6 +30,7 @@ export default async function SettingsPage() {
       <section className={styles.settingsList}>
         <article className={styles.setting}><div><h2>Profil</h2><p>{profile}</p></div></article>
         <ThemePicker />
+        <CompletionThresholdForm threshold={completionThreshold} />
         {regionResult.error ? (
           <article className={styles.setting}><div><h2>Negara layanan streaming</h2><p>Daftar negara sedang tidak dapat dimuat. Coba buka halaman ini kembali nanti.</p></div></article>
         ) : <ProviderRegionForm regions={regionResult.regions} countryCode={countryCode} />}

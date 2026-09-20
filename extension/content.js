@@ -388,7 +388,7 @@ async function sendHeartbeat(roots, force = false) {
     showNotice(
       response.title ?? activeTitle,
       response.synced
-        ? "Posisi video mencapai 80%. Sudah disinkronkan ke riwayat."
+        ? `Posisi video mencapai ${response.completionThreshold ?? 80}%. Sudah disinkronkan ke riwayat.`
         : "Selesai disimpan di extension. Sinkronisasi ke dashboard akan dicoba ulang.",
     );
   }

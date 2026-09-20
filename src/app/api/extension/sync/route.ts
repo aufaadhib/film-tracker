@@ -96,7 +96,8 @@ export async function POST(request: Request) {
     console.error("Extension catalog match failed", error);
   }
 
-  const { data, error } = await supabase.rpc("sync_extension_watch_v2", {
+  const coverage = body.data.progress ?? body.data.coverage ?? 0;
+  const { data, error } = await supabase.rpc("sync_extension_watch_v3", {
     p_token_hash: hash(token),
     p_event_id: body.data.eventId,
     p_provider: body.data.provider,
@@ -106,7 +107,7 @@ export async function POST(request: Request) {
     p_episode_number: body.data.episodeNumber ?? null,
     p_episode_title: body.data.episodeTitle ?? null,
     p_duration_seconds: body.data.duration ?? null,
-    p_coverage_percent: Math.max(80, body.data.progress ?? body.data.coverage ?? 80),
+    p_coverage_percent: coverage,
     p_watched_at: body.data.watchedAt,
     p_tmdb_id: match?.tmdbId ?? null,
     p_media_type: match?.mediaType ?? null,
@@ -124,12 +125,22 @@ export async function POST(request: Request) {
     return Response.json({ error: "Tontonan belum berhasil disinkronkan." }, { status: 503 });
   }
 
-  const result = data as { authenticated?: boolean; synced?: boolean; matched?: boolean } | null;
+  const result = data as {
+    authenticated?: boolean;
+    synced?: boolean;
+    matched?: boolean;
+    completion_threshold?: number;
+  } | null;
   if (!result?.authenticated) {
     return Response.json({ error: "Pairing extension tidak lagi valid." }, { status: 401 });
   }
   if (!result.synced) {
-    return Response.json({ error: "Tontonan ditolak karena datanya tidak valid." }, { status: 400 });
+    return Response.json({
+      error: result.completion_threshold && coverage < result.completion_threshold
+        ? `Tontonan belum mencapai ambang ${result.completion_threshold}%.`
+        : "Tontonan ditolak karena datanya tidak valid.",
+      completionThreshold: result.completion_threshold,
+    }, { status: result.completion_threshold && coverage < result.completion_threshold ? 409 : 400 });
   }
 
   if (match?.mediaType === "tv") {
@@ -148,6 +159,7 @@ export async function POST(request: Request) {
     matched: Boolean(result.matched),
     title: match?.title ?? body.data.canonicalTitle ?? body.data.title,
     originalTitle: match?.originalTitle ?? body.data.originalTitle ?? null,
+    completionThreshold: result.completion_threshold,
   }, {
     headers: { "Cache-Control": "no-store" },
   });

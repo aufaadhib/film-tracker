@@ -20,9 +20,11 @@ function renderSummary(summary) {
   const recentWatched = summary?.recent ?? watched;
   const inProgress = summary?.inProgress ?? [];
   const connected = Boolean(summary?.connected);
+  const completionThreshold = Number(summary?.completionThreshold) || 80;
   const pendingSync = watched.filter((item) => !item.syncedAt).length;
   document.getElementById("watched-count").textContent = String(watched.length).padStart(2, "0");
   document.getElementById("active-count").textContent = String(summary?.activeCount ?? 0).padStart(2, "0");
+  document.getElementById("completion-copy").textContent = `Judul ditandai selesai saat posisi video mencapai ${completionThreshold}%.`;
   connectionState.textContent = connected ? "Terhubung" : "Belum terhubung";
   connectionState.classList.toggle("connected", connected);
   loginButton.hidden = connected;
