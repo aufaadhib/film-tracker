@@ -4,7 +4,6 @@ import { type FormEvent, useActionState, useRef } from "react";
 import { deleteUnmatchedWatch, deleteWatchedTitle, type DeleteWatchedState } from "@/app/dashboard/actions";
 import { confirmDelete } from "@/components/sweetalert";
 import { TrashIcon } from "@/components/icons";
-import styles from "./media-row.module.css";
 
 const initialState: DeleteWatchedState = { status: "idle", message: "" };
 
@@ -33,7 +32,7 @@ export function DeleteWatchedButton({ itemId, matched, title, episode = false }:
   return (
     <form
       action={action}
-      className={styles.deleteForm}
+      className="grid justify-items-end gap-1 [&_button]:inline-flex [&_button]:min-h-11 [&_button]:cursor-pointer [&_button]:items-center [&_button]:gap-1.25 [&_button]:rounded-lg [&_button]:border [&_button]:border-line [&_button]:bg-transparent [&_button]:px-2.75 [&_button]:text-[.57rem] [&_button]:font-[750] [&_button]:text-[#a33b38] [&_button]:hover:border-[#bc3e3a] [&_button]:hover:bg-[rgb(188_62_58/7%)] [&_button]:disabled:cursor-wait [&_button]:disabled:opacity-55 [&_small]:max-w-37.5 [&_small]:text-right [&_small]:text-[.52rem] [&_small]:leading-[1.35] [&_small]:text-[#a33b38] max-[480px]:[&_button]:w-11 max-[480px]:[&_button]:justify-center max-[480px]:[&_button]:p-0 max-[480px]:[&_button_span]:sr-only"
       onSubmit={handleSubmit}
     >
       <input type="hidden" name="itemId" value={itemId} />

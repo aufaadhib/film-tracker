@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import { formatDisplayTitle, type CatalogSearchItem } from "@/lib/catalog";
 import { addToWatchlist } from "@/app/dashboard/watchlist/actions";
 import { BookmarkIcon, CheckIcon, SearchIcon } from "@/components/icons";
-import styles from "./catalog-search.module.css";
 
 type SearchState = "idle" | "loading" | "ready" | "empty" | "error";
 
@@ -110,17 +109,17 @@ export function CatalogSearch() {
   }
 
   return (
-    <section className={styles.searchPanel} aria-labelledby="search-title">
-      <div className={styles.headingRow}>
+    <section className="rounded-[17px] border border-line bg-surface p-4.5 min-[768px]:p-6" aria-labelledby="search-title">
+      <div className="mb-4.25 flex items-start justify-between gap-4 [&_h2]:m-0 [&_h2]:font-display [&_h2]:text-[1.45rem] [&_h2]:tracking-[-.045em]">
         <div>
-          <p className={styles.eyebrow}>CATAT MANUAL</p>
+          <p className="mb-1.25 font-mono text-[.53rem] font-bold tracking-[.11em] text-reel-blue">CATAT MANUAL</p>
           <h2 id="search-title">Temukan satu judul</h2>
         </div>
-        <span className={styles.shortcut} aria-hidden="true">TMDB</span>
+        <span className="rounded-full border border-line-strong px-2 py-1.5 font-mono text-[.48rem] font-bold text-muted" aria-hidden="true">TMDB</span>
       </div>
 
-      <label className={styles.searchBox}>
-        <span className={styles.srOnly}>Cari film atau serial</span>
+      <label className="flex min-h-14 items-center gap-2.5 rounded-[11px] border border-line-strong bg-canvas px-3.5 text-reel-blue transition-[border-color,box-shadow] duration-150 focus-within:border-reel-blue focus-within:shadow-[0_0_0_3px_rgb(109_140_255/14%)] [&_input]:min-w-0 [&_input]:flex-1 [&_input]:border-0 [&_input]:bg-transparent [&_input]:text-[.9rem] [&_input]:font-semibold [&_input]:text-ink [&_input]:outline-0 [&_input::placeholder]:font-[450] [&_input::placeholder]:text-muted">
+        <span className="sr-only">Cari film atau serial</span>
         <SearchIcon size={21} />
         <input
           name="catalog-query"
@@ -130,10 +129,10 @@ export function CatalogSearch() {
           placeholder="Cari Interstellar, The Bear…"
           autoComplete="off"
         />
-        {state === "loading" && <span className={styles.loader} aria-label="Mencari" />}
+        {state === "loading" && <span className="size-4.5 animate-spin rounded-full border-2 border-line border-t-watched-mint motion-reduce:animate-none" aria-label="Mencari" />}
       </label>
 
-      <div className={styles.status} aria-live="polite">
+      <div className="min-h-8.5 px-0.5 pt-2.25 pb-0.5 text-[.7rem] text-muted" aria-live="polite">
         {state === "idle" && <span>Mulai dengan minimal 2 karakter.</span>}
         {state === "loading" && <span>Mencari judul yang cocok…</span>}
         {state === "empty" && <span>Belum ada hasil. Coba judul asli atau ejaan lain.</span>}
@@ -142,14 +141,14 @@ export function CatalogSearch() {
       </div>
 
       {state === "ready" && (
-        <ul className={styles.results}>
+        <ul className="grid list-none p-0">
           {results.slice(0, 6).map((title) => {
             const key = `${title.mediaType}:${title.tmdbId}`;
             const isSaved = saved.includes(key) || Boolean(title.watched);
             const isInWatchlist = watchlistSaved.includes(key) || Boolean(title.watchlist);
             return (
-              <li key={`${title.mediaType}-${title.tmdbId}`} className={styles.result}>
-                <div className={styles.poster}>
+              <li key={`${title.mediaType}-${title.tmdbId}`} className="grid grid-cols-[52px_minmax(0,1fr)] gap-3 border-t border-line py-3.5 min-[768px]:grid-cols-[58px_minmax(0,1fr)_auto] min-[768px]:items-center min-[768px]:gap-4">
+                <div className="relative row-span-2 grid h-18.5 w-13 place-items-center overflow-hidden rounded-lg bg-reel-blue-strong font-display text-[1.4rem] font-extrabold text-[#f5f7fa] [&_img]:object-cover min-[768px]:row-auto min-[768px]:h-20.5 min-[768px]:w-14.5">
                   {title.posterPath ? (
                     <Image
                       src={`https://image.tmdb.org/t/p/w154${title.posterPath}`}
@@ -161,20 +160,20 @@ export function CatalogSearch() {
                     <span>{title.title.slice(0, 1)}</span>
                   )}
                 </div>
-                <div className={styles.resultCopy}>
-                  <div className={styles.meta}>
+                <div className="min-w-0 [&_h3]:mb-1 [&_h3]:overflow-hidden [&_h3]:text-ellipsis [&_h3]:whitespace-nowrap [&_h3]:font-display [&_h3]:text-[.98rem] [&_h3]:tracking-tight [&>p]:line-clamp-2 [&>p]:text-[.67rem] [&>p]:leading-[1.4] [&>p]:text-muted">
+                  <div className="mb-1 flex flex-wrap gap-x-2.5 gap-y-1.25 font-mono text-[.48rem] font-bold tracking-wider text-reel-blue">
                     <span>{title.mediaType === "movie" ? "FILM" : "SERIAL"}</span>
                     <span>{title.year ?? "—"}</span>
-                    {title.seriesStatus === "ongoing" && <span className={styles.releaseStatus}>MASIH TAYANG</span>}
+                    {title.seriesStatus === "ongoing" && <span className="-my-0.5 rounded-[5px] bg-ongoing-bg px-1.25 py-0.5 text-[.43rem] tracking-[.035em] text-ongoing-text">MASIH TAYANG</span>}
                     {title.voteAverage > 0 && <span>★ {title.voteAverage.toFixed(1)}</span>}
                     {title.watched && <span>{title.watched.watchCount}× ditonton</span>}
                   </div>
                   <h3>{formatDisplayTitle(title.title, title.originalTitle)}</h3>
                   <p>{title.overview}</p>
                 </div>
-                <div className={styles.resultActions}>
+                <div className="col-2 flex flex-wrap gap-1.75 justify-self-start min-[768px]:col-auto min-[768px]:max-w-62.5 min-[768px]:justify-end min-[768px]:justify-self-end">
                   <button
-                    className={isSaved ? styles.savedButton : styles.addButton}
+                    className={isSaved ? "inline-flex min-h-11 cursor-pointer items-center gap-1.25 rounded-lg border-0 bg-surface-soft px-3 text-[.65rem] font-extrabold text-ink-soft disabled:cursor-default disabled:opacity-70" : "min-h-11 cursor-pointer rounded-lg border-0 bg-watched-mint px-3 text-[.65rem] font-extrabold text-[#071019] hover:bg-[#75e4ba] disabled:cursor-default disabled:opacity-70"}
                     type="button"
                     onClick={() => markWatched(title)}
                     disabled={saving === key || isSaved}
@@ -182,7 +181,7 @@ export function CatalogSearch() {
                     {isSaved ? <><CheckIcon size={17} /> Sudah ditonton</> : saving === key ? "Menyimpan…" : "Tandai ditonton"}
                   </button>
                   <button
-                    className={isInWatchlist ? styles.savedButton : styles.watchlistButton}
+                    className={isInWatchlist ? "inline-flex min-h-11 cursor-pointer items-center gap-1.25 rounded-lg border-0 bg-surface-soft px-3 text-[.65rem] font-extrabold text-ink-soft disabled:cursor-default disabled:opacity-70" : "inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-line-strong bg-transparent px-3 text-[.65rem] font-extrabold text-ink hover:border-reel-blue hover:text-reel-blue disabled:cursor-default disabled:opacity-70"}
                     type="button"
                     onClick={() => saveToWatchlist(title)}
                     disabled={savingWatchlist === key || isInWatchlist}
@@ -197,7 +196,7 @@ export function CatalogSearch() {
       )}
 
       {message.includes("Masuk") && (
-        <Link className={styles.loginLink} href="/auth/login">Masuk ke akun →</Link>
+        <Link className="mt-2 inline-block text-[.72rem] font-extrabold text-reel-blue" href="/auth/login">Masuk ke akun →</Link>
       )}
     </section>
   );

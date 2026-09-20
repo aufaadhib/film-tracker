@@ -4,7 +4,6 @@ import { type FormEvent, useActionState, useRef } from "react";
 import { deleteInProgress, type DeleteProgressState } from "@/app/dashboard/actions";
 import { confirmDelete } from "@/components/sweetalert";
 import { TrashIcon } from "@/components/icons";
-import styles from "@/app/dashboard/dashboard.module.css";
 
 const initialState: DeleteProgressState = { status: "idle", message: "" };
 
@@ -28,7 +27,7 @@ export function DeleteProgressButton({ progressId, title }: { progressId: string
   return (
     <form
       action={action}
-      className={styles.continueDeleteForm}
+      className="grid justify-items-end gap-1 [&_button]:inline-flex [&_button]:min-h-8 [&_button]:cursor-pointer [&_button]:items-center [&_button]:gap-1.25 [&_button]:rounded-lg [&_button]:border [&_button]:border-line [&_button]:bg-transparent [&_button]:px-2.25 [&_button]:text-[.56rem] [&_button]:font-[750] [&_button]:text-[#a33b38] [&_button]:hover:border-[#bc3e3a] [&_button]:hover:bg-[rgb(188_62_58/7%)] [&_button]:disabled:cursor-wait [&_button]:disabled:opacity-55 [&_small]:max-w-42.5 [&_small]:text-right [&_small]:text-[#a33b38]"
       onSubmit={handleSubmit}
     >
       <input type="hidden" name="progressId" value={progressId} />

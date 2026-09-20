@@ -50,7 +50,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <PwaRegister />
-        <a className="skip-link" href="#main-content">Lewati ke konten utama</a>
+        <a className="fixed top-3 left-4 z-1000 -translate-y-[160%] rounded-[10px] bg-watched-mint px-3.5 py-2.5 font-extrabold text-[#071019] transition-transform duration-150 focus:translate-y-0" href="#main-content">Lewati ke konten utama</a>
         {children}
       </body>
     </html>
