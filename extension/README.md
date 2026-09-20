@@ -21,4 +21,4 @@ Jalankan pemeriksaan algoritme dengan:
 npm run test:extension
 ```
 
-`npm run extension:prod` membuat ZIP production di `public/downloads` dengan endpoint `https://reelmark.afana.id`. Source development tetap menggunakan `http://localhost:3000`.
+Source extension menggunakan `https://reelmark.afana.id` agar aman bila dimuat langsung. `npm run extension:dev` membuat salinan localhost di `build/reelmark-extension-development`, sedangkan `npm run extension:prod` membuat ZIP production di `public/downloads`.

@@ -4,7 +4,7 @@ import { runInNewContext } from "node:vm";
 import "../config.js";
 import sync from "../sync.js";
 
-assert.equal(sync.apiBase, "http://localhost:3000");
+assert.equal(sync.apiBase, "https://reelmark.afana.id");
 
 assert.equal(sync.normalizePairCode("abcd-2345"), "ABCD2345");
 assert.equal(sync.normalizePairCode("IO10 abcd"), "ABCD");

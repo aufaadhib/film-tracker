@@ -43,4 +43,4 @@ Produk ini menggunakan TMDB API. Reelmark tidak didukung atau disertifikasi oleh
 
 Login extension menggunakan alur OAuth web, tetapi extension hanya menerima token perangkat terbatas yang disimpan dalam bentuk hash di database. Sinkronisasi saat ini otomatis memasukkan hasil dengan kecocokan judul TMDB yang persis; judul ambigu dan detail episode masih membutuhkan alur konfirmasi pada tahap berikutnya.
 
-Source extension menggunakan `http://localhost:3000` untuk development. Jalankan `npm run extension:prod` untuk membuat ZIP production yang hanya mengarah ke `https://reelmark.afana.id`.
+Source extension menggunakan endpoint production sebagai default aman. Jalankan `npm run extension:dev` untuk membuat build localhost, atau `npm run extension:prod` untuk membuat ZIP production yang hanya mengarah ke `https://reelmark.afana.id`.

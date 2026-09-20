@@ -85,6 +85,7 @@ export async function POST(request: Request) {
   }
 
   let match = null;
+  let catalogLookupFailed = false;
   try {
     match = await within(resolveCatalogMatch({
       canonicalTitle: body.data.canonicalTitle,
@@ -93,11 +94,12 @@ export async function POST(request: Request) {
       providerUrl: body.data.url,
     }), 7000);
   } catch (error) {
+    catalogLookupFailed = true;
     console.error("Extension catalog match failed", error);
   }
 
   const coverage = body.data.progress ?? body.data.coverage ?? 0;
-  const { data, error } = await supabase.rpc("sync_extension_watch_v3", {
+  const { data, error } = await supabase.rpc("sync_extension_watch_v4", {
     p_token_hash: hash(token),
     p_event_id: body.data.eventId,
     p_provider: body.data.provider,
@@ -118,6 +120,7 @@ export async function POST(request: Request) {
     p_poster_path: match?.posterPath ?? null,
     p_backdrop_path: match?.backdropPath ?? null,
     p_vote_average: match?.voteAverage ?? null,
+    p_catalog_lookup_failed: catalogLookupFailed,
   });
 
   if (error) {
@@ -129,12 +132,16 @@ export async function POST(request: Request) {
     authenticated?: boolean;
     synced?: boolean;
     matched?: boolean;
+    catalog_retry?: boolean;
     completion_threshold?: number;
   } | null;
   if (!result?.authenticated) {
     return Response.json({ error: "Pairing extension tidak lagi valid." }, { status: 401 });
   }
   if (!result.synced) {
+    if (result.catalog_retry) {
+      return Response.json({ error: "Katalog film belum dapat diperiksa. Sinkronisasi akan dicoba lagi." }, { status: 503 });
+    }
     return Response.json({
       error: result.completion_threshold && coverage < result.completion_threshold
         ? `Tontonan belum mencapai ambang ${result.completion_threshold}%.`

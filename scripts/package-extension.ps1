@@ -34,6 +34,7 @@ foreach ($file in $files) {
 }
 Copy-Item -Path (Join-Path $source "icons\*") -Destination (Join-Path $output "icons")
 
+$utf8 = [Text.UTF8Encoding]::new($false)
 if ($Target -eq "production") {
   $productionOrigin = "https://reelmark.afana.id"
   $manifest.name = "Reelmark Watch Detector"
@@ -42,7 +43,6 @@ if ($Target -eq "production") {
       $manifest.host_permissions | Where-Object { $_ -ne "http://localhost:3000/*" }
     ) + "$productionOrigin/*" | Select-Object -Unique
   )
-  $utf8 = [Text.UTF8Encoding]::new($false)
   [IO.File]::WriteAllText(
     (Join-Path $output "manifest.json"),
     ($manifest | ConvertTo-Json -Depth 10),
@@ -63,5 +63,11 @@ if ($Target -eq "production") {
   Compress-Archive -Path (Join-Path $output "*") -DestinationPath $zip -CompressionLevel Optimal -Force
   Write-Host "Production: $zip"
 } else {
+  $developmentOrigin = "http://localhost:3000"
+  [IO.File]::WriteAllText(
+    (Join-Path $output "config.js"),
+    "(function exposeConfig(root) {`n  root.ReelConfig = Object.freeze({ apiBase: `"$developmentOrigin`" });`n})(globalThis);`n",
+    $utf8
+  )
   Write-Host "Development (Load unpacked): $output"
 }
